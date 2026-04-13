@@ -47,7 +47,7 @@ function Navbar() {
         </ul>
 
         <a
-          href="https://github.com/"
+          href="https://github.com/KhemalMS/kasir-ai"
           target="_blank"
           rel="noopener noreferrer"
           className="navbar-cta"
@@ -509,7 +509,7 @@ function CTA() {
           Lihat source code lengkap di GitHub atau hubungi saya untuk kolaborasi dan diskusi lebih lanjut.
         </p>
         <div className="cta-actions">
-          <a href="https://github.com/" target="_blank" rel="noopener noreferrer" className="btn-primary">
+          <a href="https://github.com/KhemalMS/kasir-ai" target="_blank" rel="noopener noreferrer" className="btn-primary">
             <span className="material-symbols-outlined" style={{ fontSize: 20 }}>code</span>
             Source Code
           </a>
@@ -538,8 +538,8 @@ function Footer() {
         <span className="footer-copy">© 2026 Kasir-AI — Portfolio Project</span>
 
         <div className="footer-links">
-          <a href="https://github.com/" target="_blank" rel="noopener noreferrer">GitHub</a>
-          <a href="https://linkedin.com/" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+          <a href="https://github.com/KhemalMS/kasir-ai" target="_blank" rel="noopener noreferrer">GitHub</a>
+          <a href="https://linkedin.com/in/KhemalMS" target="_blank" rel="noopener noreferrer">LinkedIn</a>
           <a href="mailto:your@email.com">Email</a>
         </div>
       </div>
