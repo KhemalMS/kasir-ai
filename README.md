@@ -276,22 +276,6 @@ stockAdjustments, settings, taxes, paymentMethods, branches
 
 ---
 
-## 📸 Screenshots
-
-<div align="center">
-
-### Admin Dashboard
-<img src="apps/portfolio/public/images/dashboard.png" alt="Admin Dashboard" width="700" />
-
-### Mobile Cashier
-<img src="apps/portfolio/public/images/mobile.png" alt="Mobile App" width="700" />
-
-### API Architecture
-<img src="apps/portfolio/public/images/api.png" alt="API Architecture" width="700" />
-
-</div>
-
----
 
 ## 🤝 Kontak
 
