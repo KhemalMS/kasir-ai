@@ -513,7 +513,7 @@ function CTA() {
             <span className="material-symbols-outlined" style={{ fontSize: 20 }}>code</span>
             Source Code
           </a>
-          <a href="mailto:your@email.com" className="btn-secondary">
+          <a href="mailto:khemal.sofian08@gmail.com" className="btn-secondary">
             <span className="material-symbols-outlined" style={{ fontSize: 20 }}>mail</span>
             Hubungi Saya
           </a>
@@ -539,8 +539,8 @@ function Footer() {
 
         <div className="footer-links">
           <a href="https://github.com/KhemalMS/kasir-ai" target="_blank" rel="noopener noreferrer">GitHub</a>
-          <a href="https://linkedin.com/in/KhemalMS" target="_blank" rel="noopener noreferrer">LinkedIn</a>
-          <a href="mailto:your@email.com">Email</a>
+          <a href="https://www.linkedin.com/in/khemalms" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+          <a href="mailto:khemal.sofian08@gmail.com">Email</a>
         </div>
       </div>
     </footer>
