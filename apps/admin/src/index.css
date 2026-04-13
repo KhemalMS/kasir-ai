@@ -1,0 +1,198 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+@plugin "@tailwindcss/forms";
+@plugin "@tailwindcss/container-queries";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-primary: #1f8fff;
+  --color-primary-dark: #0066cc;
+  --color-background-light: #f5f7f8;
+  --color-background-dark: #0f1115;
+  --color-surface-dark: #1a1d23;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+
+  --font-display: "Inter", sans-serif;
+
+  --radius-action: 12px;
+
+  --animate-dash: dash 2s linear forwards;
+}
+
+@layer utilities {
+  .bg-glass {
+    background-image: linear-gradient(145deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%);
+  }
+}
+
+@layer base {
+  body {
+    font-family: 'Inter', sans-serif;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0f1115;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #27303a;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #394756;
+}
+
+@layer utilities {
+  .glass-card {
+    background: rgba(30, 35, 45, 0.4);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  }
+
+  .glass-card:hover {
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(19, 127, 236, 0.5);
+    box-shadow: 0 0 15px rgba(19, 127, 236, 0.15);
+    transform: translateY(-2px);
+  }
+
+  .glass-panel {
+    background: rgba(30, 41, 59, 0.4);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  .glass-header {
+    background: rgba(15, 17, 21, 0.8);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .chart-grid line {
+    stroke: rgba(255, 255, 255, 0.05);
+  }
+
+  .chart-line {
+    stroke-dasharray: 1000;
+    stroke-dashoffset: 1000;
+    animation: dash 2s linear forwards;
+  }
+
+  .receipt-jagged-edge {
+    background:
+      linear-gradient(-45deg, transparent 8px, #1e293b 0) 0 8px,
+      linear-gradient(45deg, transparent 8px, #1e293b 0) 0 8px;
+    background-position: left bottom;
+    background-repeat: repeat-x;
+    background-size: 16px 16px;
+    height: 16px;
+    width: 100%;
+    position: absolute;
+    bottom: -16px;
+    left: 0;
+    transform: rotate(180deg);
+  }
+
+  .receipt-pattern {
+    background-image: radial-gradient(#334155 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #334155;
+    border-radius: 4px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #475569;
+  }
+}
+
+@keyframes dash {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* ===== Thermal Printer Styles (58mm / 80mm paper) ===== */
+@media print {
+
+  /* Hide everything except the receipt */
+  body * {
+    visibility: hidden !important;
+  }
+
+  #printable-receipt,
+  #printable-receipt * {
+    visibility: visible !important;
+  }
+
+  /* Position the receipt at the top-left */
+  #printable-receipt {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 58mm !important;
+    max-width: 58mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: white !important;
+    color: black !important;
+    font-size: 11px !important;
+    line-height: 1.3 !important;
+  }
+
+  /* Reset all text to black on white */
+  #printable-receipt * {
+    color: black !important;
+    background: transparent !important;
+    border-color: #ccc !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  /* Hide action buttons and decorative elements */
+  .no-print,
+  .receipt-jagged-edge,
+  #printable-receipt img[alt="QR Code"] {
+    display: none !important;
+  }
+
+  /* Make dashed borders print-friendly */
+  #printable-receipt [class*="border-dashed"] {
+    border-style: dashed !important;
+    border-color: #999 !important;
+  }
+
+  /* Page settings */
+  @page {
+    size: 58mm auto;
+    margin: 2mm;
+  }
+}

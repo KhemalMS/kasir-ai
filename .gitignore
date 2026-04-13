@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+.pnp/
+.pnp.js
+
+# Build outputs
+build/
+dist/
+.dart_tool/
+.packages
+
+# Environment & secrets
+.env
+.env.local
+.env.production
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Flutter
+.flutter-plugins
+.flutter-plugins-dependencies
+pubspec.lock
+
+# Logs
+*.log
+npm-debug.log*
+
+# Uploads
+apps/api/uploads/*
+!apps/api/uploads/.gitkeep
+
+# Misc
+.cache/
+*.tgz
