@@ -1,9 +1,7 @@
 import React from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet } from 'react-router-dom';
 
 export default function Layout() {
-    const navigate = useNavigate();
-
     return (
         <div className="flex h-screen w-full overflow-hidden bg-background-dark text-slate-100 font-display antialiased">
             <aside className="hidden w-72 flex-col border-r border-[#1e293b] bg-[#111418] lg:flex">
@@ -157,6 +155,22 @@ export default function Layout() {
                                     <>
                                         <span className={`material-symbols-outlined ${isActive ? 'fill-1' : ''}`}>settings</span>
                                         <span className="text-sm font-medium">Pengaturan</span>
+                                    </>
+                                )}
+                            </NavLink>
+                            <NavLink
+                                to="/profil"
+                                className={({ isActive }) =>
+                                    `flex items-center gap-3 rounded-lg px-3 py-2 transition-colors ${isActive
+                                        ? 'bg-primary/10 text-primary ring-1 ring-primary/20'
+                                        : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                                    }`
+                                }
+                            >
+                                {({ isActive }) => (
+                                    <>
+                                        <span className={`material-symbols-outlined ${isActive ? 'fill-1' : ''}`}>person</span>
+                                        <span className="text-sm font-medium">Profil Akun</span>
                                     </>
                                 )}
                             </NavLink>

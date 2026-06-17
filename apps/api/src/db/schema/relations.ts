@@ -7,6 +7,7 @@ import { productBranches } from './productBranches';
 import { productIngredients } from './productIngredients';
 import { inventory } from './inventory';
 import { staff } from './staff';
+import { staffSalaries } from './staffSalaries';
 import { shifts } from './shifts';
 import { orders } from './orders';
 import { orderItems } from './orderItems';
@@ -96,6 +97,15 @@ export const staffRelations = relations(staff, ({ one, many }) => ({
     orders: many(orders),
     shifts: many(shifts),
     expenses: many(expenses),
+    salaries: many(staffSalaries),
+}));
+
+// ── Staff Salaries Relations ────────────────────────────────────
+export const staffSalariesRelations = relations(staffSalaries, ({ one }) => ({
+    staff: one(staff, {
+        fields: [staffSalaries.staffId],
+        references: [staff.id],
+    }),
 }));
 
 // ── Shift Relations ────────────────────────────────────────────

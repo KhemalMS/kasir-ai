@@ -40,6 +40,25 @@ export const settingsService = {
         return results;
     },
 
+    // Store info (name, address, phone, etc.)
+    async getStoreInfo(): Promise<Record<string, string>> {
+        const rows = await db.select().from(settings).where(eq(settings.group, 'store'));
+        const info: Record<string, string> = {};
+        for (const row of rows) {
+            info[row.key] = row.value;
+        }
+        return info;
+    },
+
+    async updateStoreInfo(data: Record<string, string>) {
+        const items = Object.entries(data).map(([key, value]) => ({
+            key,
+            value,
+            group: 'store',
+        }));
+        return this.bulkUpdate(items);
+    },
+
     // Payment methods
     async getPaymentMethods() {
         return db.select().from(paymentMethods);

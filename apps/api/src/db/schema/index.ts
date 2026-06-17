@@ -10,6 +10,7 @@ export { productBranches } from './productBranches';
 export { productIngredients } from './productIngredients';
 export { inventory } from './inventory';
 export { staff } from './staff';
+export { staffSalaries } from './staffSalaries';
 export { shifts } from './shifts';
 export { orders } from './orders';
 export { orderItems } from './orderItems';
@@ -30,6 +31,7 @@ export {
     inventoryRelations,
     productIngredientsRelations,
     staffRelations,
+    staffSalariesRelations,
     shiftsRelations,
     ordersRelations,
     orderItemsRelations,

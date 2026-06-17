@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct } from '../hooks/useProducts';
+import { useProducts, useCreateProduct, useUpdateProduct } from '../hooks/useProducts';
 import { useCategories } from '../hooks/useCategories';
 import { SkeletonCard, EmptyState } from '../components/LoadingStates';
 import { productsService } from '../services/products.service';
@@ -25,7 +25,6 @@ export default function Produk() {
     const { data: categories = [] } = useCategories();
     const createProduct = useCreateProduct();
     const updateProduct = useUpdateProduct();
-    const deleteProduct = useDeleteProduct();
 
     return (
         <>
@@ -59,14 +58,30 @@ export default function Produk() {
                     <div className="glass-panel flex flex-col gap-4 rounded-xl p-4 md:flex-row md:items-center md:justify-between">
                         <div className="relative w-full md:w-96">
                             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
-                            <input className="w-full rounded-lg border-0 bg-white/5 py-2.5 pl-10 pr-4 text-sm text-white placeholder-slate-400 ring-1 ring-transparent transition-all focus:bg-white/10 focus:ring-primary" placeholder="Cari produk (mis. Kopi Susu, Croissant)..." type="text" />
+                            <input
+                                className="w-full rounded-lg border-0 bg-white/5 py-2.5 pl-10 pr-4 text-sm text-white placeholder-slate-400 ring-1 ring-transparent transition-all focus:bg-white/10 focus:ring-primary"
+                                placeholder="Cari produk (mis. Kopi Susu, Croissant)..."
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
                         </div>
                         <div className="flex w-full items-center gap-2 overflow-x-auto pb-2 md:w-auto md:pb-0 hide-scrollbar">
-                            <button className="whitespace-nowrap rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white shadow-md shadow-primary/20">Semua</button>
-                            <button className="whitespace-nowrap rounded-lg bg-white/5 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-white/10 hover:text-white transition-colors">Kopi</button>
-                            <button className="whitespace-nowrap rounded-lg bg-white/5 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-white/10 hover:text-white transition-colors">Non-Kopi</button>
-                            <button className="whitespace-nowrap rounded-lg bg-white/5 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-white/10 hover:text-white transition-colors">Pastry</button>
-                            <button className="whitespace-nowrap rounded-lg bg-white/5 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-white/10 hover:text-white transition-colors">Snack</button>
+                            <button
+                                className={`whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium transition-colors ${categoryFilter === null ? 'bg-primary text-white shadow-md shadow-primary/20' : 'bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white'}`}
+                                onClick={() => setCategoryFilter(null)}
+                            >
+                                Semua
+                            </button>
+                            {categories.map((category) => (
+                                <button
+                                    key={category.id}
+                                    className={`whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium transition-colors ${categoryFilter === category.id ? 'bg-primary text-white shadow-md shadow-primary/20' : 'bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white'}`}
+                                    onClick={() => setCategoryFilter(category.id)}
+                                >
+                                    {category.name}
+                                </button>
+                            ))}
                         </div>
                     </div>
 

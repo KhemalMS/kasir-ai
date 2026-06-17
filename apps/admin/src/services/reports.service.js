@@ -1,31 +1,42 @@
 import { apiClient } from '../lib/api-client';
 
+const buildQs = (params) => {
+    const p = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v != null && v !== '') p.set(k, v); });
+    return p.toString() ? `?${p.toString()}` : '';
+};
+
 export const reportsService = {
-    getDailySummary: (date, branchId) => {
-        const params = new URLSearchParams();
-        if (date) params.set('date', date);
-        if (branchId) params.set('branchId', branchId);
-        const qs = params.toString();
-        return apiClient.get(`/reports/daily${qs ? `?${qs}` : ''}`);
-    },
-    getSummary: (branchId) => {
-        const qs = branchId ? `?branchId=${branchId}` : '';
-        return apiClient.get(`/reports/summary${qs}`);
-    },
-    getTopProducts: (limit = 10, branchId) => {
-        const params = new URLSearchParams();
-        params.set('limit', limit.toString());
-        if (branchId) params.set('branchId', branchId);
-        return apiClient.get(`/reports/top-products?${params}`);
-    },
-    getRevenueChart: (days = 7, branchId) => {
-        const params = new URLSearchParams();
-        params.set('days', days.toString());
-        if (branchId) params.set('branchId', branchId);
-        return apiClient.get(`/reports/revenue-chart?${params}`);
-    },
-    getCriticalStock: (branchId) => {
-        const qs = branchId ? `?branchId=${branchId}` : '';
-        return apiClient.get(`/reports/critical-stock${qs}`);
-    },
+    getDailySummary: (date, branchId) =>
+        apiClient.get(`/reports/daily${buildQs({ date, branchId })}`),
+
+    getSummary: (branchId) =>
+        apiClient.get(`/reports/summary${buildQs({ branchId })}`),
+
+    getTopProducts: (limit = 10, branchId) =>
+        apiClient.get(`/reports/top-products${buildQs({ limit, branchId })}`),
+
+    getRevenueChart: (days = 7, branchId) =>
+        apiClient.get(`/reports/revenue-chart${buildQs({ days, branchId })}`),
+
+    getCriticalStock: (branchId) =>
+        apiClient.get(`/reports/critical-stock${buildQs({ branchId })}`),
+
+    getProfitLoss: (start, end, branchId) =>
+        apiClient.get(`/reports/profit-loss${buildQs({ start, end, branchId })}`),
+
+    getCashFlow: (start, end, branchId) =>
+        apiClient.get(`/reports/cash-flow${buildQs({ start, end, branchId })}`),
+
+    getExpenseSummary: (start, end, branchId) =>
+        apiClient.get(`/reports/expense-summary${buildQs({ start, end, branchId })}`),
+
+    getExpenseReport: (start, end, branchId) =>
+        apiClient.get(`/reports/expense-report${buildQs({ start, end, branchId })}`),
+
+    getDailySales: (start, end, branchId) =>
+        apiClient.get(`/reports/daily-sales${buildQs({ start, end, branchId })}`),
+
+    getShiftReport: (start, end, branchId) =>
+        apiClient.get(`/reports/shift-report${buildQs({ start, end, branchId })}`),
 };

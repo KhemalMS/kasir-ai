@@ -7,6 +7,9 @@ export const user = mysqlTable('user', {
     emailVerified: boolean('email_verified').notNull().default(false),
     image: varchar('image', { length: 500 }),
     role: varchar('role', { length: 50 }).notNull().default('kasir'),
+    banned: boolean('banned').notNull().default(false),
+    banReason: varchar('ban_reason', { length: 255 }),
+    banExpires: datetime('ban_expires'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });

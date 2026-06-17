@@ -26,10 +26,18 @@ void printReceiptHtml(String html) {
       doc.write(h);
       doc.close();
 
-      setTimeout(function() {
+      // Gunakan onload untuk memastikan konten sudah ter-render sebelum print
+      iframe.onload = function() {
         iframe.contentWindow.focus();
         iframe.contentWindow.print();
-      }, 500);
+      };
+      // Fallback jika onload tidak terpicu (misalnya browser tertentu)
+      setTimeout(function() {
+        try {
+          iframe.contentWindow.focus();
+          iframe.contentWindow.print();
+        } catch(e) {}
+      }, 800);
     };
   '''.toJS;
   globalContext.callMethod('eval'.toJS, helperScript);

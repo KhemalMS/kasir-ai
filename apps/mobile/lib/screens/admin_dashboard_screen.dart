@@ -15,6 +15,8 @@ import '../providers/auth_provider.dart';
 import '../utils/web_print.dart' if (dart.library.io) '../utils/web_print_stub.dart';
 import '../providers/settings_provider.dart';
 import '../services/api_service.dart';
+import 'profile_screen.dart';
+import 'staff_management_screen.dart';
 
 // Safe numeric conversion — API sometimes returns String values
 num _n(dynamic v) => v is num ? v : num.tryParse(v?.toString() ?? '') ?? 0;
@@ -36,8 +38,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     final settings = context.watch<SettingsProvider>();
     final isDark = settings.isDark;
     final bgColor = isDark ? AppTheme.bgDark : AppTheme.bgLight;
-    final sidebarColor = isDark ? const Color(0xFF111827) : Colors.white;
-    final borderColor = isDark ? const Color(0xFF1F2937) : const Color(0xFFE2E8F0);
+    final sidebarColor = isDark ? AppTheme.cardDark : Colors.white;
+    final borderColor = isDark ? AppTheme.surfaceDark : const Color(0xFFE2E8F0);
     final textColor = isDark ? Colors.white : AppTheme.textDark;
 
 
@@ -101,12 +103,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             child: Row(
                               children: [
                                 Icon(tab['icon'] as IconData, size: 20,
-                                  color: isActive ? AppTheme.primary : const Color(0xFF9CA3AF)),
+                                  color: isActive ? AppTheme.primary : AppTheme.textMuted),
                                 const SizedBox(width: 12),
                                 Text(tab['label'] as String,
                                   style: TextStyle(
                                     fontSize: 14, fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-                                    color: isActive ? Colors.white : const Color(0xFF9CA3AF),
+                                    color: isActive ? Colors.white : AppTheme.textMuted,
                                   ),
                                 ),
                               ],
@@ -117,6 +119,30 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     );
                   }),
                   const Spacer(),
+                  // Profile Link
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                    child: Material(
+                      color: Colors.transparent,
+                      borderRadius: BorderRadius.circular(10),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(10),
+                        onTap: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
+                        },
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          child: Row(
+                            children: [
+                              Icon(Icons.person, size: 20, color: Colors.blue),
+                              SizedBox(width: 12),
+                              Text('Profil Akun', style: TextStyle(fontSize: 14, color: Colors.blue)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                   // Logout
                   Padding(
                     padding: const EdgeInsets.all(12),
@@ -152,7 +178,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 children: [
                   _DashboardTab(formatter: _formatter),
                   _ProdukTab(formatter: _formatter),
-                  const _StaffTab(),
+                  const StaffManagementScreen(),
                   _LaporanTab(formatter: _formatter),
                   const _BahanBakuTab(),
                   const _PengaturanTab(),
@@ -196,7 +222,8 @@ class _DashboardTabState extends State<_DashboardTab> {
         ApiService.getList('/reports/hourly'),
         ApiService.getList('/reports/monthly'),
       ]);
-      if (mounted) setState(() {
+      if (mounted) {
+        setState(() {
         _daily = results[0] as Map<String, dynamic>;
         _topProducts = results[1] as List;
         _revenueChart = results[2] as List;
@@ -204,6 +231,7 @@ class _DashboardTabState extends State<_DashboardTab> {
         _monthlyChart = results[4] as List;
         _isLoading = false;
       });
+      }
     } catch (e) {
       debugPrint('Dashboard load error: $e');
       if (mounted) setState(() => _isLoading = false);
@@ -329,7 +357,7 @@ class _DashboardTabState extends State<_DashboardTab> {
                   Container(
                     height: (150 * ratio).clamp(3, 150).toDouble(),
                     decoration: BoxDecoration(
-                      color: hasValue ? const Color(0xFF22C55E).withValues(alpha: 0.7) : const Color(0xFF1F2937),
+                      color: hasValue ? AppTheme.success.withValues(alpha: 0.7) : AppTheme.surfaceDark,
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -371,7 +399,7 @@ class _DashboardTabState extends State<_DashboardTab> {
                   Container(
                     height: (145 * ratio).clamp(3, 145).toDouble(),
                     decoration: BoxDecoration(
-                      color: hasValue ? AppTheme.primary.withValues(alpha: 0.7) : const Color(0xFF1F2937),
+                      color: hasValue ? AppTheme.primary.withValues(alpha: 0.7) : AppTheme.surfaceDark,
                       borderRadius: BorderRadius.circular(3),
                     ),
                   ),
@@ -428,7 +456,7 @@ class _DashboardTabState extends State<_DashboardTab> {
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: const Color(0xFF111827),
+          color: AppTheme.cardDark,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: color.withValues(alpha: 0.2)),
         ),
@@ -449,9 +477,9 @@ class _DashboardTabState extends State<_DashboardTab> {
   Widget _sectionCard({required String title, required IconData icon, required Widget child}) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF111827),
+        color: AppTheme.cardDark,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF1F2937)),
+        border: Border.all(color: AppTheme.surfaceDark),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -466,7 +494,7 @@ class _DashboardTabState extends State<_DashboardTab> {
               ],
             ),
           ),
-          const Divider(height: 1, color: Color(0xFF1F2937)),
+          const Divider(height: 1, color: AppTheme.surfaceDark),
           child,
         ],
       ),
@@ -507,11 +535,13 @@ class _ProdukTabState extends State<_ProdukTab> with SingleTickerProviderStateMi
         ApiService.getList('/products?includeInactive=true'),
         ApiService.getList('/categories'),
       ]);
-      if (mounted) setState(() {
+      if (mounted) {
+        setState(() {
         _products = results[0];
         _categories = results[1];
         _isLoading = false;
       });
+      }
     } catch (e) {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -531,7 +561,7 @@ class _ProdukTabState extends State<_ProdukTab> with SingleTickerProviderStateMi
     bool taxInclusive = product?['taxInclusive'] ?? false;
 
     // Auto-calc selling price from basePrice + markup
-    void _calcSellingPrice() {
+    void calcSellingPrice() {
       final base = int.tryParse(basePriceCtrl.text) ?? 0;
       final mkp = double.tryParse(markupCtrl.text) ?? 0;
       final selling = (base * (1 + mkp / 100)).round();
@@ -539,7 +569,7 @@ class _ProdukTabState extends State<_ProdukTab> with SingleTickerProviderStateMi
     }
 
     // Reverse-calc markup from selling price
-    void _calcMarkup() {
+    void calcMarkup() {
       final base = int.tryParse(basePriceCtrl.text) ?? 0;
       final selling = int.tryParse(sellingPriceCtrl.text) ?? 0;
       if (base > 0) {
@@ -570,13 +600,13 @@ class _ProdukTabState extends State<_ProdukTab> with SingleTickerProviderStateMi
     showDialog(context: context, builder: (ctx) {
       final settings = ctx.read<SettingsProvider>();
       final isDark = settings.isDark;
-      final bgColor = isDark ? const Color(0xFF111827) : Colors.white;
+      final bgColor = isDark ? AppTheme.cardDark : Colors.white;
       final textColor = isDark ? Colors.white : AppTheme.textDark;
       final mutedColor = isDark ? AppTheme.textMuted : AppTheme.textMutedLight;
-      final fieldBg = isDark ? const Color(0xFF1F2937) : const Color(0xFFF1F5F9);
+      final fieldBg = isDark ? AppTheme.surfaceDark : const Color(0xFFF1F5F9);
       final borderCol = isDark ? const Color(0xFF374151) : const Color(0xFFE2E8F0);
 
-      InputDecoration _inputDeco(String label, {String? prefix, String? hint}) => InputDecoration(
+      InputDecoration inputDeco(String label, {String? prefix, String? hint}) => InputDecoration(
         labelText: label, labelStyle: TextStyle(color: mutedColor, fontSize: 13),
         hintText: hint, hintStyle: TextStyle(color: mutedColor.withValues(alpha: 0.5), fontSize: 12),
         prefixText: prefix, prefixStyle: TextStyle(color: mutedColor, fontSize: 13),
@@ -638,7 +668,7 @@ class _ProdukTabState extends State<_ProdukTab> with SingleTickerProviderStateMi
                       ? ClipRRect(borderRadius: BorderRadius.circular(12),
                           child: Image.network('${ApiConfig.baseUrl.replaceAll('/api', '')}$imageUrl',
                             fit: BoxFit.cover, width: double.infinity, height: 140,
-                            errorBuilder: (_, __, ___) => _uploadPlaceholder(mutedColor, settings)))
+                            errorBuilder: (_, _, _) => _uploadPlaceholder(mutedColor, settings)))
                       : _uploadPlaceholder(mutedColor, settings),
                 ),
               ),
@@ -646,25 +676,25 @@ class _ProdukTabState extends State<_ProdukTab> with SingleTickerProviderStateMi
 
               // ── Nama Produk ──
               TextField(controller: nameCtrl, style: TextStyle(color: textColor),
-                decoration: _inputDeco('Nama Produk')),
+                decoration: inputDeco('Nama Produk')),
               const SizedBox(height: 12),
 
               // ── Kode & Satuan (side by side) ──
               Row(children: [
                 Expanded(child: TextField(controller: codeCtrl, style: TextStyle(color: textColor),
-                  decoration: _inputDeco('Kode Produk', hint: 'SKU / barcode'))),
+                  decoration: inputDeco('Kode Produk', hint: 'SKU / barcode'))),
                 const SizedBox(width: 10),
                 SizedBox(width: 130, child: TextField(controller: unitCtrl, style: TextStyle(color: textColor),
-                  decoration: _inputDeco('Satuan', hint: 'pcs, cup, porsi'))),
+                  decoration: inputDeco('Satuan', hint: 'pcs, cup, porsi'))),
               ]),
               const SizedBox(height: 12),
 
               // ── Kategori & Aktif (side by side) ──
               Row(children: [
                 Expanded(child: DropdownButtonFormField<String>(
-                  value: categoryId, dropdownColor: bgColor,
+                  initialValue: categoryId, dropdownColor: bgColor,
                   style: TextStyle(color: textColor),
-                  decoration: _inputDeco(settings.t('category')),
+                  decoration: inputDeco(settings.t('category')),
                   items: _categories.map<DropdownMenuItem<String>>((c) =>
                     DropdownMenuItem(value: c['id'], child: Text(c['name']))).toList(),
                   onChanged: (v) => categoryId = v,
@@ -675,7 +705,7 @@ class _ProdukTabState extends State<_ProdukTab> with SingleTickerProviderStateMi
                   const SizedBox(height: 4),
                   Switch(
                     value: isActive,
-                    activeColor: AppTheme.success,
+                    activeThumbColor: AppTheme.success,
                     onChanged: (v) => setS(() => isActive = v),
                   ),
                   Text(isActive ? 'Aktif' : 'Nonaktif',
@@ -697,14 +727,14 @@ class _ProdukTabState extends State<_ProdukTab> with SingleTickerProviderStateMi
               Row(children: [
                 Expanded(child: TextField(controller: basePriceCtrl, style: TextStyle(color: textColor),
                   keyboardType: TextInputType.number,
-                  decoration: _inputDeco('Harga Dasar', prefix: 'Rp '),
-                  onChanged: (_) => setS(() => _calcSellingPrice()),
+                  decoration: inputDeco('Harga Dasar', prefix: 'Rp '),
+                  onChanged: (_) => setS(() => calcSellingPrice()),
                 )),
                 const SizedBox(width: 10),
                 SizedBox(width: 100, child: TextField(controller: markupCtrl, style: TextStyle(color: textColor),
                   keyboardType: TextInputType.number,
-                  decoration: _inputDeco('Markup', hint: '%'),
-                  onChanged: (_) => setS(() => _calcSellingPrice()),
+                  decoration: inputDeco('Markup', hint: '%'),
+                  onChanged: (_) => setS(() => calcSellingPrice()),
                 )),
               ]),
               const SizedBox(height: 10),
@@ -713,8 +743,8 @@ class _ProdukTabState extends State<_ProdukTab> with SingleTickerProviderStateMi
               Row(children: [
                 Expanded(child: TextField(controller: sellingPriceCtrl, style: TextStyle(color: textColor),
                   keyboardType: TextInputType.number,
-                  decoration: _inputDeco('Harga Jual', prefix: 'Rp '),
-                  onChanged: (_) => setS(() => _calcMarkup()),
+                  decoration: inputDeco('Harga Jual', prefix: 'Rp '),
+                  onChanged: (_) => setS(() => calcMarkup()),
                 )),
                 const SizedBox(width: 10),
                 Column(children: [
@@ -722,7 +752,7 @@ class _ProdukTabState extends State<_ProdukTab> with SingleTickerProviderStateMi
                   const SizedBox(height: 2),
                   Switch(
                     value: taxInclusive,
-                    activeColor: AppTheme.primary,
+                    activeThumbColor: AppTheme.primary,
                     onChanged: (v) => setS(() => taxInclusive = v),
                   ),
                 ]),
@@ -754,13 +784,13 @@ class _ProdukTabState extends State<_ProdukTab> with SingleTickerProviderStateMi
                   child: Row(children: [
                     Expanded(flex: 3, child: TextField(controller: vNameCtrl,
                       style: TextStyle(color: textColor, fontSize: 13),
-                      decoration: _inputDeco('Nama variasi'),
+                      decoration: inputDeco('Nama variasi'),
                       onChanged: (val) => variants[idx]['name'] = val)),
                     const SizedBox(width: 8),
                     Expanded(flex: 2, child: TextField(controller: vPriceCtrl,
                       style: TextStyle(color: textColor, fontSize: 13),
                       keyboardType: TextInputType.number,
-                      decoration: _inputDeco('+/- Harga', prefix: 'Rp '),
+                      decoration: inputDeco('+/- Harga', prefix: 'Rp '),
                       onChanged: (val) => variants[idx]['priceModifier'] = int.tryParse(val) ?? 0)),
                     IconButton(icon: const Icon(Icons.remove_circle, color: AppTheme.danger, size: 20),
                       onPressed: () => setS(() => variants.removeAt(idx))),
@@ -784,7 +814,7 @@ class _ProdukTabState extends State<_ProdukTab> with SingleTickerProviderStateMi
                   'taxInclusive': taxInclusive,
                   'isActive': isActive,
                   'categoryId': categoryId,
-                  if (imageUrl != null) 'imageUrl': imageUrl,
+                  'imageUrl': ?imageUrl,
                 };
                 String productId;
                 if (product == null) {
@@ -842,7 +872,7 @@ class _ProdukTabState extends State<_ProdukTab> with SingleTickerProviderStateMi
   void _showCategoryDialog([Map<String, dynamic>? cat]) {
     final nameCtrl = TextEditingController(text: cat?['name'] ?? '');
     showDialog(context: context, builder: (ctx) => AlertDialog(
-      backgroundColor: const Color(0xFF111827),
+      backgroundColor: AppTheme.cardDark,
       title: Row(
         children: [
           Text(cat == null ? 'Tambah Kategori' : 'Edit Kategori',
@@ -911,7 +941,7 @@ class _ProdukTabState extends State<_ProdukTab> with SingleTickerProviderStateMi
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 24),
           decoration: BoxDecoration(
-            color: const Color(0xFF111827),
+            color: AppTheme.cardDark,
             borderRadius: BorderRadius.circular(10),
           ),
           child: TabBar(
@@ -957,7 +987,7 @@ class _ProdukTabState extends State<_ProdukTab> with SingleTickerProviderStateMi
     return ListView.separated(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       itemCount: filtered.length,
-      separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFF1F2937)),
+      separatorBuilder: (_, _) => const Divider(height: 1, color: AppTheme.surfaceDark),
       itemBuilder: (ctx, i) {
         final p = filtered[i];
         final catName = _categories.firstWhere((c) => c['id'] == p['categoryId'], orElse: () => {'name': '-'})['name'];
@@ -974,7 +1004,7 @@ class _ProdukTabState extends State<_ProdukTab> with SingleTickerProviderStateMi
                     child: Image.network(
                       '${ApiConfig.baseUrl.replaceAll('/api', '')}${p['imageUrl']}',
                       fit: BoxFit.cover, width: 42, height: 42,
-                      errorBuilder: (_, __, ___) => const Icon(Icons.fastfood, color: AppTheme.primary, size: 20),
+                      errorBuilder: (_, _, _) => const Icon(Icons.fastfood, color: AppTheme.primary, size: 20),
                     ),
                   )
                 : const Icon(Icons.fastfood, color: AppTheme.primary, size: 20),
@@ -1013,7 +1043,7 @@ class _ProdukTabState extends State<_ProdukTab> with SingleTickerProviderStateMi
     return ListView.separated(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       itemCount: _categories.length,
-      separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFF1F2937)),
+      separatorBuilder: (_, _) => const Divider(height: 1, color: AppTheme.surfaceDark),
       itemBuilder: (ctx, i) {
         final c = _categories[i];
         final count = _products.where((p) => p['categoryId'] == c['id']).length;
@@ -1040,296 +1070,6 @@ class _ProdukTabState extends State<_ProdukTab> with SingleTickerProviderStateMi
   }
 }
 
-// ══════════════════════════════════════════════════════════════════
-// TAB 3: STAFF
-// ══════════════════════════════════════════════════════════════════
-class _StaffTab extends StatefulWidget {
-  const _StaffTab();
-  @override State<_StaffTab> createState() => _StaffTabState();
-}
-
-class _StaffTabState extends State<_StaffTab> {
-  List<dynamic> _staffList = [];
-  List<String> _roles = ['Admin', 'Kasir', 'Dapur'];
-  bool _isLoading = true;
-
-  @override
-  void initState() { super.initState(); _load(); }
-
-  Future<void> _load() async {
-    setState(() => _isLoading = true);
-    try {
-      _staffList = await ApiService.getList('/staff');
-      // Collect unique roles from staff and merge with defaults
-      final staffRoles = _staffList
-        .map((s) => s['role']?.toString() ?? '')
-        .where((r) => r.isNotEmpty)
-        .toSet();
-      final merged = {..._roles, ...staffRoles}.toList()..sort();
-      _roles = merged;
-      if (mounted) setState(() => _isLoading = false);
-    } catch (e) {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  void _showStaffDialog([Map<String, dynamic>? staff]) {
-    final nameCtrl = TextEditingController(text: staff?['name'] ?? '');
-    final emailCtrl  = TextEditingController(text: staff?['email'] ?? '');
-    String role = staff?['role'] ?? (_roles.isNotEmpty ? _roles.first : 'Kasir');
-
-    showDialog(context: context, builder: (ctx) => AlertDialog(
-      backgroundColor: const Color(0xFF111827),
-      title: Row(
-        children: [
-          Text(staff == null ? 'Tambah Staff' : 'Edit Staff',
-            style: const TextStyle(color: Colors.white)),
-          const Spacer(),
-          IconButton(onPressed: () => Navigator.pop(ctx),
-            icon: const Icon(Icons.close, color: AppTheme.textMuted, size: 20)),
-        ],
-      ),
-      content: SizedBox(
-        width: 400,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(controller: nameCtrl,
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(labelText: 'Nama')),
-            const SizedBox(height: 12),
-            TextField(controller: emailCtrl,
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(labelText: 'Email')),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              value: _roles.contains(role) ? role : (_roles.isNotEmpty ? _roles.first : null),
-              dropdownColor: const Color(0xFF111827),
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(labelText: 'Role'),
-              items: _roles.map((r) => DropdownMenuItem(value: r, child: Text(r))).toList(),
-              onChanged: (v) => role = v ?? role,
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        ElevatedButton(
-          onPressed: () async {
-            final data = {
-              'name': nameCtrl.text,
-              'email': emailCtrl.text,
-              'role': role,
-              'branchId': context.read<AuthProvider>().branchId,
-            };
-            if (staff == null) {
-              await ApiService.post('/staff', data);
-            } else {
-              await ApiService.put('/staff/${staff['id']}', data);
-            }
-            if (ctx.mounted) Navigator.pop(ctx);
-            _load();
-          },
-          child: const Text('Simpan'),
-        ),
-      ],
-    ));
-  }
-
-  void _showRolesDialog() {
-    showDialog(context: context, builder: (ctx) {
-      final roleCtrl = TextEditingController();
-      return StatefulBuilder(builder: (ctx2, setDialogState) => AlertDialog(
-        backgroundColor: const Color(0xFF111827),
-        title: Row(
-          children: [
-            const Text('Kelola Role', style: TextStyle(color: Colors.white)),
-            const Spacer(),
-            IconButton(onPressed: () => Navigator.pop(ctx),
-              icon: const Icon(Icons.close, color: AppTheme.textMuted, size: 20)),
-          ],
-        ),
-        content: SizedBox(
-          width: 350,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(controller: roleCtrl,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: const InputDecoration(
-                        hintText: 'Nama role baru...',
-                        isDense: true,
-                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                      )),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: () {
-                      final name = roleCtrl.text.trim();
-                      if (name.isNotEmpty && !_roles.contains(name)) {
-                        setState(() => _roles.add(name));
-                        setDialogState(() {});
-                        roleCtrl.clear();
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(minimumSize: const Size(0, 42)),
-                    child: const Icon(Icons.add, size: 18),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              ...List.generate(_roles.length, (i) {
-                final r = _roles[i];
-                final usedBy = _staffList.where((s) => s['role'] == r).length;
-                return ListTile(
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  leading: CircleAvatar(
-                    radius: 16,
-                    backgroundColor: _roleColor(r).withValues(alpha: 0.15),
-                    child: Text(r.isNotEmpty ? r[0] : '?', style: TextStyle(fontSize: 12, color: _roleColor(r), fontWeight: FontWeight.w700)),
-                  ),
-                  title: Text(r, style: const TextStyle(color: Colors.white, fontSize: 14)),
-                  subtitle: Text('$usedBy staff', style: const TextStyle(color: AppTheme.textMuted, fontSize: 11)),
-                  trailing: usedBy == 0
-                    ? IconButton(
-                        icon: const Icon(Icons.delete, size: 18, color: AppTheme.danger),
-                        onPressed: () {
-                          setState(() => _roles.remove(r));
-                          setDialogState(() {});
-                        },
-                      )
-                    : null,
-                );
-              }),
-            ],
-          ),
-        ),
-      ));
-    });
-  }
-
-  Color _roleColor(String role) {
-    switch (role) {
-      case 'Admin': return AppTheme.primary;
-      case 'Kasir': return AppTheme.success;
-      case 'Dapur': return const Color(0xFFFF6B35);
-      default: return AppTheme.warning;
-    }
-  }
-
-  Future<void> _confirmDeleteStaff(Map<String, dynamic> staff) async {
-    final bool? confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF111827),
-        title: Row(
-          children: [
-            const Text('Hapus Akun', style: TextStyle(color: Colors.white)),
-            const Spacer(),
-            IconButton(onPressed: () => Navigator.pop(ctx, false),
-              icon: const Icon(Icons.close, color: AppTheme.textMuted, size: 20)),
-          ],
-        ),
-        content: Text('Apakah Anda yakin ingin menghapus staf ${staff['name']}?',
-          style: const TextStyle(color: AppTheme.textMuted)),
-        actions: [
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.danger),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Hapus', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true) {
-      _deleteStaff(staff['id']);
-    }
-  }
-
-  Future<void> _deleteStaff(String id) async {
-    await ApiService.delete('/staff/$id');
-    _load();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-          child: Row(
-            children: [
-              const Text('Manajemen Staff', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: Colors.white)),
-              const Spacer(),
-              OutlinedButton.icon(
-                onPressed: _showRolesDialog,
-                icon: const Icon(Icons.badge, size: 16),
-                label: const Text('Kelola Role'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppTheme.primary,
-                  minimumSize: const Size(0, 40),
-                ),
-              ),
-              const SizedBox(width: 8),
-              ElevatedButton.icon(
-                onPressed: () => _showStaffDialog(),
-                icon: const Icon(Icons.person_add, size: 18),
-                label: const Text('Tambah Staff'),
-                style: ElevatedButton.styleFrom(minimumSize: const Size(0, 40)),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: _isLoading
-            ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
-            : ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                itemCount: _staffList.length,
-                separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFF1F2937)),
-                itemBuilder: (ctx, i) {
-                  final s = _staffList[i];
-                  final role = s['role'] ?? 'Kasir';
-                  return ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: _roleColor(role).withValues(alpha: 0.15),
-                      child: Text((s['name']?.toString().isNotEmpty == true ? s['name'].toString() : 'S')[0].toUpperCase(),
-                        style: TextStyle(color: _roleColor(role), fontWeight: FontWeight.w700)),
-                    ),
-                    title: Text(s['name'] ?? '-', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
-                    subtitle: Text(s['email'] ?? '-', style: const TextStyle(color: AppTheme.textMuted, fontSize: 12)),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: _roleColor(role).withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: _roleColor(role).withValues(alpha: 0.3)),
-                          ),
-                          child: Text(role, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _roleColor(role))),
-                        ),
-                        const SizedBox(width: 8),
-                        IconButton(icon: const Icon(Icons.edit, size: 18, color: AppTheme.textMuted),
-                          onPressed: () => _showStaffDialog(s)),
-                        IconButton(icon: const Icon(Icons.delete, size: 18, color: AppTheme.danger),
-                          onPressed: () => _confirmDeleteStaff(s)),
-                      ],
-                    ),
-                  );
-                },
-              ),
-        ),
-      ],
-    );
-  }
-}
 
 // ══════════════════════════════════════════════════════════════════
 // TAB 4: LAPORAN
@@ -1435,8 +1175,11 @@ class _LaporanTabState extends State<_LaporanTab> {
     );
     if (picked != null) {
       setState(() {
-        if (isStart) _startDate = picked;
-        else _endDate = picked;
+        if (isStart) {
+          _startDate = picked;
+        } else {
+          _endDate = picked;
+        }
       });
       _loadReport();
     }
@@ -1661,7 +1404,7 @@ class _LaporanTabState extends State<_LaporanTab> {
                 label: Text(_reportNames[i], style: const TextStyle(fontSize: 12)),
                 selected: _selectedReport == i,
                 selectedColor: AppTheme.primary,
-                backgroundColor: const Color(0xFF1F2937),
+                backgroundColor: AppTheme.surfaceDark,
                 labelStyle: TextStyle(
                   color: _selectedReport == i ? Colors.white : AppTheme.textMuted,
                 ),
@@ -1681,9 +1424,9 @@ class _LaporanTabState extends State<_LaporanTab> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
-              color: const Color(0xFF111827),
+              color: AppTheme.cardDark,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFF1F2937)),
+              border: Border.all(color: AppTheme.surfaceDark),
             ),
             child: Row(
               children: [
@@ -1694,7 +1437,7 @@ class _LaporanTabState extends State<_LaporanTab> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1F2937),
+                      color: AppTheme.surfaceDark,
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(DateFormat('dd MMM yyyy', 'id_ID').format(_startDate),
@@ -1710,7 +1453,7 @@ class _LaporanTabState extends State<_LaporanTab> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1F2937),
+                      color: AppTheme.surfaceDark,
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(DateFormat('dd MMM yyyy', 'id_ID').format(_endDate),
@@ -1839,9 +1582,9 @@ class _LaporanTabState extends State<_LaporanTab> {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: const Color(0xFF111827),
+        color: AppTheme.cardDark,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF1F2937)),
+        border: Border.all(color: AppTheme.surfaceDark),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -1853,9 +1596,9 @@ class _LaporanTabState extends State<_LaporanTab> {
             style: const TextStyle(fontSize: 13, color: AppTheme.textMuted)),
           const SizedBox(height: 24),
           _plRow('Total Pendapatan', revenue, AppTheme.success),
-          const Divider(color: Color(0xFF1F2937)),
+          const Divider(color: AppTheme.surfaceDark),
           _plRow('Total Pengeluaran', expenses, AppTheme.danger),
-          const Divider(color: Color(0xFF1F2937), thickness: 2),
+          const Divider(color: AppTheme.surfaceDark, thickness: 2),
           const SizedBox(height: 8),
           _plRow(isProfit ? 'LABA BERSIH' : 'RUGI BERSIH', profit, isProfit ? AppTheme.success : AppTheme.danger, isBold: true),
         ],
@@ -1904,8 +1647,8 @@ class _LaporanTabState extends State<_LaporanTab> {
     final isDark = settings.isDark;
     final textColor = isDark ? Colors.white : AppTheme.textDark;
     final mutedColor = isDark ? AppTheme.textMuted : AppTheme.textMutedLight;
-    final cardBg = isDark ? const Color(0xFF111827) : Colors.white;
-    final borderColor = isDark ? const Color(0xFF1F2937) : const Color(0xFFE2E8F0);
+    final cardBg = isDark ? AppTheme.cardDark : Colors.white;
+    final borderColor = isDark ? AppTheme.surfaceDark : const Color(0xFFE2E8F0);
 
     if (_orderHistory.isEmpty) return _emptyState('Tidak ada transaksi');
 
@@ -1991,7 +1734,7 @@ class _LaporanTabState extends State<_LaporanTab> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1F2937),
+        backgroundColor: AppTheme.surfaceDark,
         title: const Text('Hapus Transaksi?', style: TextStyle(color: Colors.white)),
         content: Text(
           'Transaksi ${orderNumber ?? orderId} akan dihapus permanen.\nData tidak dapat dikembalikan.',
@@ -2045,9 +1788,9 @@ class _LaporanTabState extends State<_LaporanTab> {
   Widget _buildTable({required List<String> columns, required List<List<String>> rows}) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF111827),
+        color: AppTheme.cardDark,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF1F2937)),
+        border: Border.all(color: AppTheme.surfaceDark),
       ),
       child: Column(
         children: [
@@ -2055,7 +1798,7 @@ class _LaporanTabState extends State<_LaporanTab> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: const BoxDecoration(
-              color: Color(0xFF0D1117),
+              color: AppTheme.cardDark,
               borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
             ),
             child: Row(
@@ -2064,17 +1807,17 @@ class _LaporanTabState extends State<_LaporanTab> {
               )).toList(),
             ),
           ),
-          const Divider(height: 1, color: Color(0xFF1F2937)),
+          const Divider(height: 1, color: AppTheme.surfaceDark),
           // Rows
           Expanded(
             child: ListView.separated(
               itemCount: rows.length,
-              separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFF1F2937)),
+              separatorBuilder: (_, _) => const Divider(height: 1, color: AppTheme.surfaceDark),
               itemBuilder: (ctx, i) {
                 final row = rows[i];
                 return Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  color: i.isEven ? Colors.transparent : const Color(0xFF0D1117).withValues(alpha: 0.3),
+                  color: i.isEven ? Colors.transparent : AppTheme.cardDark.withValues(alpha: 0.3),
                   child: Row(
                     children: row.map((cell) => Expanded(
                       child: Text(cell, style: const TextStyle(fontSize: 12, color: Colors.white),
@@ -2089,7 +1832,7 @@ class _LaporanTabState extends State<_LaporanTab> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: const BoxDecoration(
-              color: Color(0xFF0D1117),
+              color: AppTheme.cardDark,
               borderRadius: BorderRadius.vertical(bottom: Radius.circular(14)),
             ),
             child: Row(
@@ -2144,10 +1887,12 @@ class _BahanBakuTabState extends State<_BahanBakuTab> {
         ApiService.getList('/inventory/recipes/all'),
         ApiService.getList('/products'),
       ]);
-      if (mounted) setState(() {
+      if (mounted) {
+        setState(() {
         _items = results[0]; _alerts = results[1]; _adjustLog = results[2];
         _allRecipes = results[3]; _products = results[4]; _isLoading = false;
       });
+      }
     } catch (e) {
       if (mounted) setState(() => _isLoading = false);
       debugPrint('BahanBaku load error: $e');
@@ -2160,8 +1905,8 @@ class _BahanBakuTabState extends State<_BahanBakuTab> {
     final isDark = settings.isDark;
     final textColor = isDark ? Colors.white : AppTheme.textDark;
     final mutedColor = isDark ? AppTheme.textMuted : AppTheme.textMutedLight;
-    final borderColor = isDark ? const Color(0xFF1F2937) : const Color(0xFFE2E8F0);
-    final sidebarBg = isDark ? const Color(0xFF0D1117) : Colors.white;
+    final borderColor = isDark ? AppTheme.surfaceDark : const Color(0xFFE2E8F0);
+    final sidebarBg = isDark ? AppTheme.cardDark : Colors.white;
 
     if (_isLoading) return const Center(child: CircularProgressIndicator(color: AppTheme.primary));
 
@@ -2228,8 +1973,8 @@ class _BahanBakuTabState extends State<_BahanBakuTab> {
     final isDark = settings.isDark;
     final textColor = isDark ? Colors.white : AppTheme.textDark;
     final mutedColor = isDark ? AppTheme.textMuted : AppTheme.textMutedLight;
-    final cardBg = isDark ? const Color(0xFF111827) : Colors.white;
-    final borderColor = isDark ? const Color(0xFF1F2937) : const Color(0xFFE2E8F0);
+    final cardBg = isDark ? AppTheme.cardDark : Colors.white;
+    final borderColor = isDark ? AppTheme.surfaceDark : const Color(0xFFE2E8F0);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2255,7 +2000,7 @@ class _BahanBakuTabState extends State<_BahanBakuTab> {
               ? Center(child: Text(settings.t('no_stock_data'), style: TextStyle(color: mutedColor)))
               : ListView(children: [
                   DataTable(
-                    headingRowColor: WidgetStateProperty.all(isDark ? const Color(0xFF1F2937) : const Color(0xFFF1F5F9)),
+                    headingRowColor: WidgetStateProperty.all(isDark ? AppTheme.surfaceDark : const Color(0xFFF1F5F9)),
                     columns: [
                       DataColumn(label: Text(settings.t('name'), style: TextStyle(color: textColor, fontWeight: FontWeight.w600))),
                       DataColumn(label: Text('SKU', style: TextStyle(color: textColor, fontWeight: FontWeight.w600))),
@@ -2304,8 +2049,8 @@ class _BahanBakuTabState extends State<_BahanBakuTab> {
     final isDark = settings.isDark;
     final textColor = isDark ? Colors.white : AppTheme.textDark;
     final mutedColor = isDark ? AppTheme.textMuted : AppTheme.textMutedLight;
-    final cardBg = isDark ? const Color(0xFF111827) : Colors.white;
-    final borderColor = isDark ? const Color(0xFF1F2937) : const Color(0xFFE2E8F0);
+    final cardBg = isDark ? AppTheme.cardDark : Colors.white;
+    final borderColor = isDark ? AppTheme.surfaceDark : const Color(0xFFE2E8F0);
 
     // Group recipes by product + variant
     final Map<String, List<dynamic>> grouped = {};
@@ -2387,8 +2132,8 @@ class _BahanBakuTabState extends State<_BahanBakuTab> {
     final isDark = settings.isDark;
     final textColor = isDark ? Colors.white : AppTheme.textDark;
     final mutedColor = isDark ? AppTheme.textMuted : AppTheme.textMutedLight;
-    final cardBg = isDark ? const Color(0xFF111827) : Colors.white;
-    final borderColor = isDark ? const Color(0xFF1F2937) : const Color(0xFFE2E8F0);
+    final cardBg = isDark ? AppTheme.cardDark : Colors.white;
+    final borderColor = isDark ? AppTheme.surfaceDark : const Color(0xFFE2E8F0);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2415,7 +2160,7 @@ class _BahanBakuTabState extends State<_BahanBakuTab> {
               : ListView.separated(
                   padding: const EdgeInsets.all(0),
                   itemCount: _adjustLog.length,
-                  separatorBuilder: (_, __) => Divider(height: 1, color: borderColor),
+                  separatorBuilder: (_, _) => Divider(height: 1, color: borderColor),
                   itemBuilder: (_, i) {
                     final log = _adjustLog[i];
                     final type = log['type'] ?? '';
@@ -2443,7 +2188,7 @@ class _BahanBakuTabState extends State<_BahanBakuTab> {
     final isDark = settings.isDark;
     final textColor = isDark ? Colors.white : AppTheme.textDark;
     final mutedColor = isDark ? AppTheme.textMuted : AppTheme.textMutedLight;
-    final cardBg = isDark ? const Color(0xFF111827) : Colors.white;
+    final cardBg = isDark ? AppTheme.cardDark : Colors.white;
 
 
     return Column(
@@ -2500,7 +2245,7 @@ class _BahanBakuTabState extends State<_BahanBakuTab> {
       final settings = context.read<SettingsProvider>();
       final isDark = settings.isDark;
       return AlertDialog(
-        backgroundColor: isDark ? const Color(0xFF1F2937) : Colors.white,
+        backgroundColor: isDark ? AppTheme.surfaceDark : Colors.white,
         title: Row(children: [
           Expanded(child: Text(isEdit ? settings.t('edit_item') : settings.t('add_item'),
             style: TextStyle(color: isDark ? Colors.white : AppTheme.textDark))),
@@ -2554,17 +2299,17 @@ class _BahanBakuTabState extends State<_BahanBakuTab> {
       final settings = context.read<SettingsProvider>();
       final isDark = settings.isDark;
       return StatefulBuilder(builder: (ctx, setS) => AlertDialog(
-        backgroundColor: isDark ? const Color(0xFF1F2937) : Colors.white,
+        backgroundColor: isDark ? AppTheme.surfaceDark : Colors.white,
         title: Row(children: [
           Expanded(child: Text(settings.t('adjust_stock'), style: TextStyle(color: isDark ? Colors.white : AppTheme.textDark))),
           IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close, color: AppTheme.textMuted, size: 20)),
         ]),
         content: SizedBox(width: 400, child: Column(mainAxisSize: MainAxisSize.min, children: [
           DropdownButtonFormField<String>(
-            value: selectedItemId,
-            dropdownColor: isDark ? const Color(0xFF1F2937) : Colors.white,
+            initialValue: selectedItemId,
+            dropdownColor: isDark ? AppTheme.surfaceDark : Colors.white,
             decoration: InputDecoration(labelText: settings.t('select_item'), labelStyle: TextStyle(color: isDark ? AppTheme.textMuted : AppTheme.textMutedLight),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)), filled: true, fillColor: isDark ? const Color(0xFF111827) : const Color(0xFFF1F5F9)),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)), filled: true, fillColor: isDark ? AppTheme.cardDark : const Color(0xFFF1F5F9)),
             style: TextStyle(color: isDark ? Colors.white : AppTheme.textDark),
             items: _items.map<DropdownMenuItem<String>>((i) => DropdownMenuItem(value: i['id'], child: Text('${i['name']}'))).toList(),
             onChanged: (v) => setS(() => selectedItemId = v),
@@ -2574,10 +2319,10 @@ class _BahanBakuTabState extends State<_BahanBakuTab> {
             Expanded(child: _dialogField(settings.t('qty'), qtyC, isDark, isNum: true)),
             const SizedBox(width: 8),
             Expanded(child: DropdownButtonFormField<String>(
-              value: adjustType,
-              dropdownColor: isDark ? const Color(0xFF1F2937) : Colors.white,
+              initialValue: adjustType,
+              dropdownColor: isDark ? AppTheme.surfaceDark : Colors.white,
               decoration: InputDecoration(labelText: settings.t('type'), labelStyle: TextStyle(color: isDark ? AppTheme.textMuted : AppTheme.textMutedLight),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)), filled: true, fillColor: isDark ? const Color(0xFF111827) : const Color(0xFFF1F5F9)),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)), filled: true, fillColor: isDark ? AppTheme.cardDark : const Color(0xFFF1F5F9)),
               style: TextStyle(color: isDark ? Colors.white : AppTheme.textDark),
               items: const [
                 DropdownMenuItem(value: 'IN', child: Text('Stok Masuk (IN)')),
@@ -2625,13 +2370,13 @@ class _BahanBakuTabState extends State<_BahanBakuTab> {
     showDialog(context: context, builder: (_) {
       final settings = context.read<SettingsProvider>();
       final isDark = settings.isDark;
-      final fieldBg = isDark ? const Color(0xFF111827) : const Color(0xFFF1F5F9);
+      final fieldBg = isDark ? AppTheme.cardDark : const Color(0xFFF1F5F9);
       final textStyle = TextStyle(color: isDark ? Colors.white : AppTheme.textDark);
       final labelStyle = TextStyle(color: isDark ? AppTheme.textMuted : AppTheme.textMutedLight);
-      final dropBg = isDark ? const Color(0xFF1F2937) : Colors.white;
+      final dropBg = isDark ? AppTheme.surfaceDark : Colors.white;
 
       return StatefulBuilder(builder: (ctx, setS) => AlertDialog(
-        backgroundColor: isDark ? const Color(0xFF1F2937) : Colors.white,
+        backgroundColor: isDark ? AppTheme.surfaceDark : Colors.white,
         title: Row(children: [
           Expanded(child: Text(productId != null ? settings.t('edit_recipe') : settings.t('add_recipe'),
             style: TextStyle(color: isDark ? Colors.white : AppTheme.textDark))),
@@ -2641,7 +2386,7 @@ class _BahanBakuTabState extends State<_BahanBakuTab> {
           // Product dropdown (only for new recipes)
           if (productId == null) ...[
             DropdownButtonFormField<String>(
-              value: selectedProduct,
+              initialValue: selectedProduct,
               dropdownColor: dropBg,
               decoration: InputDecoration(labelText: settings.t('select_product'), labelStyle: labelStyle,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)), filled: true, fillColor: fieldBg),
@@ -2662,7 +2407,7 @@ class _BahanBakuTabState extends State<_BahanBakuTab> {
           // Variant dropdown (optional)
           if (productVariants.isNotEmpty) ...[
             DropdownButtonFormField<String>(
-              value: selectedVariant,
+              initialValue: selectedVariant,
               dropdownColor: dropBg,
               decoration: InputDecoration(
                 labelText: 'Variasi (opsional)',
@@ -2690,7 +2435,7 @@ class _BahanBakuTabState extends State<_BahanBakuTab> {
               padding: const EdgeInsets.only(bottom: 8),
               child: Row(children: [
                 Expanded(child: DropdownButtonFormField<String>(
-                  value: ing['inventoryId'],
+                  initialValue: ing['inventoryId'],
                   dropdownColor: dropBg,
                   decoration: InputDecoration(labelText: settings.t('ingredient'), isDense: true, labelStyle: labelStyle,
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)), filled: true, fillColor: fieldBg),
@@ -2752,7 +2497,7 @@ class _BahanBakuTabState extends State<_BahanBakuTab> {
         labelText: label, isDense: true,
         labelStyle: TextStyle(color: isDark ? AppTheme.textMuted : AppTheme.textMutedLight),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-        filled: true, fillColor: isDark ? const Color(0xFF111827) : const Color(0xFFF1F5F9),
+        filled: true, fillColor: isDark ? AppTheme.cardDark : const Color(0xFFF1F5F9),
       ),
     );
   }
@@ -2771,42 +2516,8 @@ class _PengaturanTabState extends State<_PengaturanTab> {
   int _selectedMenu = 0;
   List<dynamic> _taxes = [];
   bool _isLoading = true;
-  // Settings state (managed by SettingsProvider except print)
 
-  // Print state
-  String _printerName = 'Default Printer';
-  String _paperSize = '80mm';
-  bool _autoPrint = false;
-  String _headerText = 'Nama Toko';
-  String _footerText = 'Terima kasih!';
-  bool _showLogo = true;
-  String _logoPath = '';
-
-  // Receipt fields visibility
-  bool _showReceiptNo = true;
-  bool _showOrderNo = true;
-  bool _showTableNo = true;
-  bool _showUser = true;
-  bool _showItemCount = true;
-  bool _showTotal = true;
-  bool _showTax = true;
-  bool _showChange = true;
-
-  // Font & layout
-  String _fontFamily = 'Monospace';
-  String _fontSize = '12';
-  String _marginTop = '5';
-  String _marginBottom = '5';
-  String _marginLeft = '5';
-  String _marginRight = '5';
-  bool _autoCashDrawer = false;
-
-  // Kitchen ticket state
   int _receiptTabIndex = 0; // 0 = Customer, 1 = Kitchen
-  bool _kitchenShowTable = true;
-  bool _kitchenShowTime = true;
-  bool _kitchenShowNotes = true;
-  String _kitchenFontSize = '16';
 
   final _menuItems = const [
     {'icon': Icons.tune, 'label': 'Umum'},
@@ -2824,13 +2535,30 @@ class _PengaturanTabState extends State<_PengaturanTab> {
       final results = await Future.wait([
         ApiService.getList('/settings/taxes'),
       ]);
-      if (mounted) setState(() {
+      if (mounted) {
+        setState(() {
         _taxes = results[0];
         _isLoading = false;
       });
+      }
     } catch (e) {
       debugPrint('Settings error: $e');
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  /// Simpan semua pengaturan printer ke SharedPreferences melalui SettingsProvider
+  Future<void> _savePrinterSettings() async {
+    final settings = context.read<SettingsProvider>();
+    await settings.savePrinterSettings();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Pengaturan printer tersimpan'),
+          backgroundColor: Color(0xFF10B981),
+          duration: Duration(seconds: 2),
+        ),
+      );
     }
   }
 
@@ -2839,7 +2567,7 @@ class _PengaturanTabState extends State<_PengaturanTab> {
     final rateCtrl = TextEditingController(text: tax?['rate']?.toString() ?? '');
     bool isActive = tax?['isActive'] ?? true;
     showDialog(context: context, builder: (ctx) => AlertDialog(
-      backgroundColor: const Color(0xFF111827),
+      backgroundColor: AppTheme.cardDark,
       title: Row(
         children: [
           Expanded(child: Text(tax == null ? 'Tambah Pajak' : 'Edit Pajak',
@@ -2865,7 +2593,7 @@ class _PengaturanTabState extends State<_PengaturanTab> {
             StatefulBuilder(builder: (ctx2, setSt) => SwitchListTile(
               title: const Text('Aktif', style: TextStyle(color: Colors.white)),
               value: isActive,
-              activeColor: AppTheme.success,
+              activeThumbColor: AppTheme.success,
               onChanged: (v) => setSt(() => isActive = v),
             )),
           ],
@@ -2895,8 +2623,8 @@ class _PengaturanTabState extends State<_PengaturanTab> {
 
     final settings = context.watch<SettingsProvider>();
     final isDark = settings.isDark;
-    final sidebarBg = isDark ? const Color(0xFF0D1117) : Colors.white;
-    final borderColor = isDark ? const Color(0xFF1F2937) : const Color(0xFFE2E8F0);
+    final sidebarBg = isDark ? AppTheme.cardDark : Colors.white;
+    final borderColor = isDark ? AppTheme.surfaceDark : const Color(0xFFE2E8F0);
     final textColor = isDark ? Colors.white : AppTheme.textDark;
     final mutedColor = isDark ? AppTheme.textMuted : AppTheme.textMutedLight;
 
@@ -3065,7 +2793,7 @@ class _PengaturanTabState extends State<_PengaturanTab> {
     final isDark = settings.isDark;
     final textColor = isDark ? Colors.white : AppTheme.textDark;
     final mutedColor = isDark ? AppTheme.textMuted : AppTheme.textMutedLight;
-    final tabBg = isDark ? const Color(0xFF1F2937) : const Color(0xFFE2E8F0);
+    final tabBg = isDark ? AppTheme.surfaceDark : const Color(0xFFE2E8F0);
     final activeTabBg = AppTheme.primary;
 
     return Column(
@@ -3142,13 +2870,14 @@ class _PengaturanTabState extends State<_PengaturanTab> {
           icon: Icons.print,
           child: Column(
             children: [
-              _textFieldTile(settings.t('printer_name'), _printerName, (v) => setState(() => _printerName = v)),
-              _dropdownTile(settings.t('paper_size'), _paperSize, ['58mm', '80mm'],
-                (v) => setState(() => _paperSize = v)),
-              _switchTile(settings.t('auto_print'), _autoPrint,
-                (v) => setState(() => _autoPrint = v)),
-              _switchTile(settings.t('auto_cash_drawer'), _autoCashDrawer,
-                (v) => setState(() => _autoCashDrawer = v)),
+              _textFieldTile(settings.t('printer_name'), settings.printerName,
+                (v) => settings.printerName = v),
+              _dropdownTile(settings.t('paper_size'), settings.paperSize, ['58mm', '80mm'],
+                (v) => settings.paperSize = v),
+              _switchTile(settings.t('auto_print'), settings.autoPrint,
+                (v) => settings.autoPrint = v),
+              _switchTile(settings.t('auto_cash_drawer'), settings.autoCashDrawer,
+                (v) => setState(() => settings.autoCashDrawer = v)),
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                 child: SizedBox(
@@ -3175,7 +2904,8 @@ class _PengaturanTabState extends State<_PengaturanTab> {
           icon: Icons.image,
           child: Column(
             children: [
-              _switchTile(settings.t('show_logo'), _showLogo, (v) => setState(() => _showLogo = v)),
+              _switchTile(settings.t('show_logo'), settings.showLogo,
+                (v) => setState(() => settings.showLogo = v)),
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                 child: Row(
@@ -3183,15 +2913,15 @@ class _PengaturanTabState extends State<_PengaturanTab> {
                     Container(
                       width: 80, height: 80,
                       decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF1F2937) : const Color(0xFFE2E8F0),
+                        color: isDark ? AppTheme.surfaceDark : const Color(0xFFE2E8F0),
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(color: isDark ? const Color(0xFF374151) : const Color(0xFFCBD5E1)),
                       ),
-                      child: _logoPath.isEmpty
+                      child: settings.logoPath.isEmpty
                         ? Icon(Icons.store, size: 32, color: mutedColor)
                         : ClipRRect(
                             borderRadius: BorderRadius.circular(9),
-                            child: Image.network(_logoPath, fit: BoxFit.cover),
+                            child: Image.network(settings.logoPath, fit: BoxFit.cover),
                           ),
                     ),
                     const SizedBox(width: 16),
@@ -3226,8 +2956,10 @@ class _PengaturanTabState extends State<_PengaturanTab> {
           icon: Icons.receipt_long,
           child: Column(
             children: [
-              _textFieldTile(settings.t('receipt_header'), _headerText, (v) => setState(() => _headerText = v)),
-              _textFieldTile(settings.t('receipt_footer'), _footerText, (v) => setState(() => _footerText = v)),
+              _textFieldTile(settings.t('receipt_header'), settings.headerText,
+                (v) => setState(() => settings.headerText = v)),
+              _textFieldTile(settings.t('receipt_footer'), settings.footerText,
+                (v) => setState(() => settings.footerText = v)),
             ],
           ),
         ),
@@ -3239,14 +2971,14 @@ class _PengaturanTabState extends State<_PengaturanTab> {
           icon: Icons.checklist,
           child: Column(
             children: [
-              _switchTile(settings.t('receipt_no'), _showReceiptNo, (v) => setState(() => _showReceiptNo = v)),
-              _switchTile(settings.t('order_no'), _showOrderNo, (v) => setState(() => _showOrderNo = v)),
-              _switchTile(settings.t('table_no'), _showTableNo, (v) => setState(() => _showTableNo = v)),
-              _switchTile(settings.t('cashier_user'), _showUser, (v) => setState(() => _showUser = v)),
-              _switchTile(settings.t('item_count'), _showItemCount, (v) => setState(() => _showItemCount = v)),
-              _switchTile(settings.t('total_amount'), _showTotal, (v) => setState(() => _showTotal = v)),
-              _switchTile(settings.t('tax_info'), _showTax, (v) => setState(() => _showTax = v)),
-              _switchTile(settings.t('change_amount'), _showChange, (v) => setState(() => _showChange = v)),
+              _switchTile(settings.t('receipt_no'), settings.showReceiptNo, (v) => setState(() => settings.showReceiptNo = v)),
+              _switchTile(settings.t('order_no'), settings.showOrderNo, (v) => setState(() => settings.showOrderNo = v)),
+              _switchTile(settings.t('table_no'), settings.showTableNo, (v) => setState(() => settings.showTableNo = v)),
+              _switchTile(settings.t('cashier_user'), settings.showUser, (v) => setState(() => settings.showUser = v)),
+              _switchTile(settings.t('item_count'), settings.showItemCount, (v) => setState(() => settings.showItemCount = v)),
+              _switchTile(settings.t('total_amount'), settings.showTotal, (v) => setState(() => settings.showTotal = v)),
+              _switchTile(settings.t('tax_info'), settings.showTax, (v) => setState(() => settings.showTax = v)),
+              _switchTile(settings.t('change_amount'), settings.showChange, (v) => setState(() => settings.showChange = v)),
             ],
           ),
         ),
@@ -3258,12 +2990,12 @@ class _PengaturanTabState extends State<_PengaturanTab> {
           icon: Icons.text_fields,
           child: Column(
             children: [
-              _dropdownTile(settings.t('font_type'), _fontFamily,
+              _dropdownTile(settings.t('font_type'), settings.fontFamily,
                 ['Monospace', 'Sans-Serif', 'Serif'],
-                (v) => setState(() => _fontFamily = v)),
-              _dropdownTile(settings.t('font_size_label'), _fontSize,
+                (v) => setState(() => settings.fontFamily = v)),
+              _dropdownTile(settings.t('font_size_label'), settings.fontSize,
                 ['8', '9', '10', '11', '12', '14', '16'],
-                (v) => setState(() => _fontSize = v)),
+                (v) => setState(() => settings.fontSize = v)),
             ],
           ),
         ),
@@ -3275,10 +3007,10 @@ class _PengaturanTabState extends State<_PengaturanTab> {
           icon: Icons.space_bar,
           child: Column(
             children: [
-              _textFieldTile(settings.t('margin_top'), _marginTop, (v) => setState(() => _marginTop = v)),
-              _textFieldTile(settings.t('margin_bottom'), _marginBottom, (v) => setState(() => _marginBottom = v)),
-              _textFieldTile(settings.t('margin_left'), _marginLeft, (v) => setState(() => _marginLeft = v)),
-              _textFieldTile(settings.t('margin_right'), _marginRight, (v) => setState(() => _marginRight = v)),
+              _textFieldTile(settings.t('margin_top'), settings.marginTop, (v) => setState(() => settings.marginTop = v)),
+              _textFieldTile(settings.t('margin_bottom'), settings.marginBottom, (v) => setState(() => settings.marginBottom = v)),
+              _textFieldTile(settings.t('margin_left'), settings.marginLeft, (v) => setState(() => settings.marginLeft = v)),
+              _textFieldTile(settings.t('margin_right'), settings.marginRight, (v) => setState(() => settings.marginRight = v)),
             ],
           ),
         ),
@@ -3300,38 +3032,40 @@ class _PengaturanTabState extends State<_PengaturanTab> {
                 ),
                 child: Column(
                   children: [
-                    if (_showLogo && _logoPath.isNotEmpty)
+                    if (settings.showLogo && settings.logoPath.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 8),
-                        child: Image.network(_logoPath, height: 50),
+                        child: Image.network(settings.logoPath, height: 50),
                       ),
-                    Text(_headerText, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.black, fontFamily: 'monospace')),
-                    const Text('Jl. Contoh No. 123', style: TextStyle(fontSize: 10, color: Colors.grey)),
-                    const Text('Telp: 021-1234567', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                    Text(settings.headerText, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.black, fontFamily: 'monospace')),
+                    Text(settings.storeAddress.isNotEmpty ? settings.storeAddress : 'Jl. Contoh No. 123',
+                      style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                    Text(settings.storePhone.isNotEmpty ? 'Telp: ${settings.storePhone}' : 'Telp: 021-1234567',
+                      style: const TextStyle(fontSize: 10, color: Colors.grey)),
                     const Divider(color: Colors.black38),
-                    if (_showReceiptNo) _customerPreviewRow(settings.t('receipt_no'), '#RCP-001'),
-                    if (_showOrderNo) _customerPreviewRow(settings.t('order_no'), '#ORD-001'),
-                    if (_showTableNo) _customerPreviewRow(settings.t('table_no'), '5'),
-                    if (_showUser) _customerPreviewRow(settings.t('cashier_user'), 'Admin'),
+                    if (settings.showReceiptNo) _customerPreviewRow(settings.t('receipt_no'), '#RCP-001'),
+                    if (settings.showOrderNo) _customerPreviewRow(settings.t('order_no'), '#ORD-001'),
+                    if (settings.showTableNo) _customerPreviewRow(settings.t('table_no'), '5'),
+                    if (settings.showUser) _customerPreviewRow(settings.t('cashier_user'), 'Admin'),
                     const Divider(color: Colors.black38),
                     _customerItemRow('Kopi Latte', '2 x 18.000', '36.000'),
                     _customerItemRow('Croissant', '1 x 25.000', '25.000'),
                     _customerItemRow('Es Teh Manis', '3 x 8.000', '24.000'),
                     const Divider(color: Colors.black38),
-                    if (_showItemCount) _customerPreviewRow(settings.t('item_count'), '6'),
-                    if (_showTotal) _customerPreviewBoldRow('TOTAL', 'Rp 85.000'),
-                    if (_showTax) _customerPreviewRow('${settings.t('tax_info')} (10%)', 'Rp 8.500'),
-                    if (_showTotal) _customerPreviewBoldRow('Grand Total', 'Rp 93.500'),
+                    if (settings.showItemCount) _customerPreviewRow(settings.t('item_count'), '6'),
+                    if (settings.showTotal) _customerPreviewBoldRow('TOTAL', 'Rp 85.000'),
+                    if (settings.showTax) _customerPreviewRow('${settings.t('tax_info')} (10%)', 'Rp 8.500'),
+                    if (settings.showTotal) _customerPreviewBoldRow('Grand Total', 'Rp 93.500'),
                     _customerPreviewRow('Bayar (Tunai)', 'Rp 100.000'),
-                    if (_showChange) _customerPreviewBoldRow(settings.t('change_amount'), 'Rp 6.500'),
+                    if (settings.showChange) _customerPreviewBoldRow(settings.t('change_amount'), 'Rp 6.500'),
                     const Divider(color: Colors.black38),
-                    Text(_footerText, style: const TextStyle(fontSize: 10, color: Colors.grey), textAlign: TextAlign.center),
+                    Text(settings.footerText, style: const TextStyle(fontSize: 10, color: Colors.grey), textAlign: TextAlign.center),
                     const Text('Powered by Kasir-AI', style: TextStyle(fontSize: 9, color: Colors.grey)),
                   ],
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                 child: SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
@@ -3340,6 +3074,23 @@ class _PengaturanTabState extends State<_PengaturanTab> {
                     label: Text(settings.t('print_test_page')),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppTheme.primary,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+              ),
+              // Tombol Simpan Pengaturan Print
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _savePrinterSettings,
+                    icon: const Icon(Icons.save, size: 16),
+                    label: const Text('Simpan Pengaturan Print'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.success,
+                      foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                   ),
@@ -3408,12 +3159,12 @@ class _PengaturanTabState extends State<_PengaturanTab> {
           icon: Icons.restaurant,
           child: Column(
             children: [
-              _switchTile(settings.t('show_table_number'), _kitchenShowTable,
-                (v) => setState(() => _kitchenShowTable = v)),
-              _switchTile(settings.t('show_order_time'), _kitchenShowTime,
-                (v) => setState(() => _kitchenShowTime = v)),
-              _switchTile(settings.t('show_special_notes'), _kitchenShowNotes,
-                (v) => setState(() => _kitchenShowNotes = v)),
+              _switchTile(settings.t('show_table_number'), settings.kitchenShowTable,
+                (v) => setState(() => settings.kitchenShowTable = v)),
+              _switchTile(settings.t('show_order_time'), settings.kitchenShowTime,
+                (v) => setState(() => settings.kitchenShowTime = v)),
+              _switchTile(settings.t('show_special_notes'), settings.kitchenShowNotes,
+                (v) => setState(() => settings.kitchenShowNotes = v)),
             ],
           ),
         ),
@@ -3425,9 +3176,9 @@ class _PengaturanTabState extends State<_PengaturanTab> {
           icon: Icons.text_fields,
           child: Column(
             children: [
-              _dropdownTile(settings.t('font_size_label'), _kitchenFontSize,
+              _dropdownTile(settings.t('font_size_label'), settings.kitchenFontSize,
                 ['14', '16', '18', '20', '24'],
-                (v) => setState(() => _kitchenFontSize = v)),
+                (v) => setState(() => settings.kitchenFontSize = v)),
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
                 child: Text(
@@ -3460,14 +3211,14 @@ class _PengaturanTabState extends State<_PengaturanTab> {
                   children: [
                     const Text('🍳 DAPUR', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.black, fontFamily: 'monospace')),
                     const Divider(color: Colors.black54),
-                    if (_kitchenShowTable)
+                    if (settings.kitchenShowTable)
                       _kitchenPreviewRow('Meja', '5'),
-                    if (_kitchenShowTime)
+                    if (settings.kitchenShowTime)
                       _kitchenPreviewRow('Waktu', '22:45'),
                     const Divider(color: Colors.black54),
                     // Items with per-product notes
-                    Text('2x  Kopi Latte', style: TextStyle(fontSize: double.parse(_kitchenFontSize), fontWeight: FontWeight.w700, color: Colors.black)),
-                    if (_kitchenShowNotes)
+                    Text('2x  Kopi Latte', style: TextStyle(fontSize: double.parse(settings.kitchenFontSize), fontWeight: FontWeight.w700, color: Colors.black)),
+                    if (settings.kitchenShowNotes)
                       const Padding(
                         padding: EdgeInsets.only(left: 24, bottom: 4),
                         child: Row(children: [
@@ -3477,10 +3228,10 @@ class _PengaturanTabState extends State<_PengaturanTab> {
                         ]),
                       ),
                     const SizedBox(height: 2),
-                    Text('1x  Croissant', style: TextStyle(fontSize: double.parse(_kitchenFontSize), fontWeight: FontWeight.w700, color: Colors.black)),
+                    Text('1x  Croissant', style: TextStyle(fontSize: double.parse(settings.kitchenFontSize), fontWeight: FontWeight.w700, color: Colors.black)),
                     const SizedBox(height: 2),
-                    Text('3x  Es Teh Manis', style: TextStyle(fontSize: double.parse(_kitchenFontSize), fontWeight: FontWeight.w700, color: Colors.black)),
-                    if (_kitchenShowNotes)
+                    Text('3x  Es Teh Manis', style: TextStyle(fontSize: double.parse(settings.kitchenFontSize), fontWeight: FontWeight.w700, color: Colors.black)),
+                    if (settings.kitchenShowNotes)
                       const Padding(
                         padding: EdgeInsets.only(left: 24, bottom: 4),
                         child: Row(children: [
@@ -3531,12 +3282,13 @@ class _PengaturanTabState extends State<_PengaturanTab> {
 
   void _pickLogo() {
     if (!kIsWeb) return;
+    final settings = context.read<SettingsProvider>();
     try {
       webPickFile(
         accept: 'image/*',
-        onPicked: (_, __) {},
+        onPicked: (_, _) {},
         onPickedDataUrl: (dataUrl) {
-          setState(() => _logoPath = dataUrl);
+          setState(() => settings.logoPath = dataUrl);
         },
       );
     } catch (e) {
@@ -3546,17 +3298,19 @@ class _PengaturanTabState extends State<_PengaturanTab> {
 
   void _printTestPage() {
     final settings = context.read<SettingsProvider>();
-    final mt = _marginTop, mb = _marginBottom, ml = _marginLeft, mr = _marginRight;
-    final font = _fontFamily == 'Monospace' ? 'monospace' : _fontFamily == 'Serif' ? 'serif' : 'sans-serif';
-    final fSize = _fontSize;
+    final mt = settings.marginTop, mb = settings.marginBottom,
+          ml = settings.marginLeft, mr = settings.marginRight;
+    final font = settings.fontFamily == 'Monospace' ? 'monospace'
+        : settings.fontFamily == 'Serif' ? 'serif' : 'sans-serif';
+    final fSize = settings.fontSize;
 
     final fields = <String>[];
-    if (_showReceiptNo) fields.add('<tr><td>${settings.t('receipt_no')}</td><td style="text-align:right">#TEST-001</td></tr>');
-    if (_showOrderNo) fields.add('<tr><td>${settings.t('order_no')}</td><td style="text-align:right">#ORD-001</td></tr>');
-    if (_showTableNo) fields.add('<tr><td>${settings.t('table_no')}</td><td style="text-align:right">5</td></tr>');
-    if (_showUser) fields.add('<tr><td>${settings.t('cashier_user')}</td><td style="text-align:right">Admin</td></tr>');
+    if (settings.showReceiptNo) fields.add('<tr><td>${settings.t('receipt_no')}</td><td style="text-align:right">#TEST-001</td></tr>');
+    if (settings.showOrderNo) fields.add('<tr><td>${settings.t('order_no')}</td><td style="text-align:right">#ORD-001</td></tr>');
+    if (settings.showTableNo) fields.add('<tr><td>${settings.t('table_no')}</td><td style="text-align:right">5</td></tr>');
+    if (settings.showUser) fields.add('<tr><td>${settings.t('cashier_user')}</td><td style="text-align:right">Admin</td></tr>');
 
-    final items = '''
+    const items = '''
       <tr style="border-top:1px dashed #000;border-bottom:1px dashed #000">
         <td><b>Item</b></td><td style="text-align:center"><b>Qty</b></td><td style="text-align:right"><b>Harga</b></td>
       </tr>
@@ -3566,15 +3320,19 @@ class _PengaturanTabState extends State<_PengaturanTab> {
     ''';
 
     final totals = <String>[];
-    if (_showItemCount) totals.add('<tr><td>${settings.t('item_count')}</td><td style="text-align:right">6</td></tr>');
-    if (_showTotal) totals.add('<tr style="border-top:1px dashed #000"><td><b>Total</b></td><td style="text-align:right"><b>Rp 85.000</b></td></tr>');
-    if (_showTax) totals.add('<tr><td>${settings.t('tax_info')} (10%)</td><td style="text-align:right">Rp 8.500</td></tr>');
-    if (_showTotal) totals.add('<tr style="border-top:1px solid #000"><td><b>Grand Total</b></td><td style="text-align:right"><b>Rp 93.500</b></td></tr>');
-    if (_showChange) totals.add('<tr><td>${settings.t('change_amount')}</td><td style="text-align:right">Rp 6.500</td></tr>');
+    if (settings.showItemCount) totals.add('<tr><td>${settings.t('item_count')}</td><td style="text-align:right">6</td></tr>');
+    if (settings.showTotal) totals.add('<tr style="border-top:1px dashed #000"><td><b>Total</b></td><td style="text-align:right"><b>Rp 85.000</b></td></tr>');
+    if (settings.showTax) totals.add('<tr><td>${settings.t('tax_info')} (10%)</td><td style="text-align:right">Rp 8.500</td></tr>');
+    if (settings.showTotal) totals.add('<tr style="border-top:1px solid #000"><td><b>Grand Total</b></td><td style="text-align:right"><b>Rp 93.500</b></td></tr>');
+    if (settings.showChange) totals.add('<tr><td>${settings.t('change_amount')}</td><td style="text-align:right">Rp 6.500</td></tr>');
 
-    final logoHtml = (_showLogo && _logoPath.isNotEmpty)
-      ? '<img src="$_logoPath" style="max-width:80px;max-height:80px;margin-bottom:8px" />'
+    final logoHtml = (settings.showLogo && settings.logoPath.isNotEmpty)
+      ? '<img src="${settings.logoPath}" style="max-width:80px;max-height:80px;margin-bottom:8px" />'
       : '';
+
+    final storeAddr = settings.storeAddress.isNotEmpty ? settings.storeAddress : 'Jl. Contoh No. 123';
+    final storePhone = settings.storePhone.isNotEmpty ? 'Telp: ${settings.storePhone}' : 'Telp: 021-1234567';
+    final storeName = settings.storeName.isNotEmpty ? settings.storeName : settings.headerText;
 
     final htmlContent = '''
 <!DOCTYPE html>
@@ -3582,7 +3340,7 @@ class _PengaturanTabState extends State<_PengaturanTab> {
 <head><title>Test Print</title>
 <style>
   @page { margin: ${mt}mm ${mr}mm ${mb}mm ${ml}mm; }
-  body { font-family: $font; font-size: ${fSize}px; color: #000; width: ${_paperSize == '58mm' ? '48mm' : '72mm'}; margin: 0 auto; }
+  body { font-family: $font; font-size: ${fSize}px; color: #000; width: ${settings.paperSize == '58mm' ? '48mm' : '72mm'}; margin: 0 auto; }
   table { width: 100%; border-collapse: collapse; }
   td { padding: 2px 0; vertical-align: top; }
   .center { text-align: center; }
@@ -3593,14 +3351,15 @@ class _PengaturanTabState extends State<_PengaturanTab> {
 <body>
   <div class="center">
     $logoHtml
-    <div class="header">${_headerText}</div>
-    <div style="margin-bottom:8px;font-size:${int.parse(fSize) - 1}px">Test Receipt</div>
+    <div class="header">$storeName</div>
+    <div style="margin-bottom:4px;font-size:${int.parse(fSize) - 1}px">$storeAddr</div>
+    <div style="margin-bottom:8px;font-size:${int.parse(fSize) - 1}px">$storePhone</div>
   </div>
   <table>${fields.join('')}</table>
   <table>$items</table>
   <table>${totals.join('')}</table>
   <hr/>
-  <div class="center" style="font-size:${int.parse(fSize) - 1}px;margin-top:8px">${_footerText}</div>
+  <div class="center" style="font-size:${int.parse(fSize) - 1}px;margin-top:8px">${settings.footerText}</div>
   <div class="center" style="font-size:${int.parse(fSize) - 2}px;margin-top:4px;color:#888">── TEST PAGE ──</div>
 </body>
 </html>
@@ -3610,25 +3369,26 @@ class _PengaturanTabState extends State<_PengaturanTab> {
   }
 
   void _printKitchenTestPage() {
+    final settings = context.read<SettingsProvider>();
     final now = DateTime.now();
     final timeStr = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
-    final fSize = _kitchenFontSize;
+    final fSize = settings.kitchenFontSize;
     final noteSize = '${int.parse(fSize) - 2}';
 
     final infoRows = <String>[];
-    if (_kitchenShowTable) infoRows.add('<tr><td>Meja</td><td style="text-align:right;font-weight:bold">5</td></tr>');
-    if (_kitchenShowTime) infoRows.add('<tr><td>Waktu</td><td style="text-align:right;font-weight:bold">$timeStr</td></tr>');
+    if (settings.kitchenShowTable) infoRows.add('<tr><td>Meja</td><td style="text-align:right;font-weight:bold">5</td></tr>');
+    if (settings.kitchenShowTime) infoRows.add('<tr><td>Waktu</td><td style="text-align:right;font-weight:bold">$timeStr</td></tr>');
 
-    final note1 = _kitchenShowNotes ? '<div class="note">📝 Tanpa gula</div>' : '';
-    final note2 = _kitchenShowNotes ? '<div class="note">📝 Es dipisah</div>' : '';
+    final note1 = settings.kitchenShowNotes ? '<div class="note">📝 Tanpa gula</div>' : '';
+    final note2 = settings.kitchenShowNotes ? '<div class="note">📝 Es dipisah</div>' : '';
 
     final htmlContent = '''
 <!DOCTYPE html>
 <html>
 <head><title>Kitchen Ticket</title>
 <style>
-  @page { margin: 2mm; size: ${_paperSize == '58mm' ? '58mm' : '80mm'} auto; }
-  body { font-family: monospace; font-size: ${fSize}px; color: #000; width: ${_paperSize == '58mm' ? '48mm' : '72mm'}; margin: 0 auto; }
+  @page { margin: 2mm; size: ${settings.paperSize == '58mm' ? '58mm' : '80mm'} auto; }
+  body { font-family: monospace; font-size: ${fSize}px; color: #000; width: ${settings.paperSize == '58mm' ? '48mm' : '72mm'}; margin: 0 auto; }
   table { width: 100%; border-collapse: collapse; }
   td { padding: 2px 0; vertical-align: top; }
   .center { text-align: center; }
@@ -3762,8 +3522,8 @@ class _PengaturanTabState extends State<_PengaturanTab> {
 
   Widget _settingsCard({required String title, required IconData icon, required Widget child, Widget? trailing}) {
     final isDark = context.watch<SettingsProvider>().isDark;
-    final cardBg = isDark ? const Color(0xFF111827) : Colors.white;
-    final borderColor = isDark ? const Color(0xFF1F2937) : const Color(0xFFE2E8F0);
+    final cardBg = isDark ? AppTheme.cardDark : Colors.white;
+    final borderColor = isDark ? AppTheme.surfaceDark : const Color(0xFFE2E8F0);
     final textColor = isDark ? Colors.white : AppTheme.textDark;
 
     return Container(
@@ -3781,7 +3541,7 @@ class _PengaturanTabState extends State<_PengaturanTab> {
               Icon(icon, size: 20, color: AppTheme.primary),
               const SizedBox(width: 8),
               Expanded(child: Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: textColor))),
-              if (trailing != null) trailing,
+              ?trailing,
             ]),
           ),
           Divider(height: 1, color: borderColor),
@@ -3794,7 +3554,7 @@ class _PengaturanTabState extends State<_PengaturanTab> {
   Widget _dropdownTile(String label, String value, List<String> options, ValueChanged<String> onChanged) {
     final isDark = context.watch<SettingsProvider>().isDark;
     final textColor = isDark ? Colors.white : AppTheme.textDark;
-    final dropdownBg = isDark ? const Color(0xFF1F2937) : const Color(0xFFE2E8F0);
+    final dropdownBg = isDark ? AppTheme.surfaceDark : const Color(0xFFE2E8F0);
 
     return ListTile(
       title: Text(label, style: TextStyle(color: textColor, fontSize: 14)),
@@ -3806,7 +3566,7 @@ class _PengaturanTabState extends State<_PengaturanTab> {
         ),
         child: DropdownButton<String>(
           value: value,
-          dropdownColor: isDark ? const Color(0xFF1F2937) : Colors.white,
+          dropdownColor: isDark ? AppTheme.surfaceDark : Colors.white,
           underline: const SizedBox(),
           style: TextStyle(color: AppTheme.primary, fontSize: 13),
           items: options.map((o) => DropdownMenuItem(value: o, child: Text(o))).toList(),
@@ -3823,7 +3583,7 @@ class _PengaturanTabState extends State<_PengaturanTab> {
     return SwitchListTile(
       title: Text(label, style: TextStyle(color: textColor, fontSize: 14)),
       value: value,
-      activeColor: AppTheme.success,
+      activeThumbColor: AppTheme.success,
       onChanged: onChanged,
     );
   }
@@ -3831,7 +3591,7 @@ class _PengaturanTabState extends State<_PengaturanTab> {
   Widget _textFieldTile(String label, String value, ValueChanged<String> onChanged) {
     final isDark = context.watch<SettingsProvider>().isDark;
     final textColor = isDark ? Colors.white : AppTheme.textDark;
-    final fieldBg = isDark ? const Color(0xFF1F2937) : const Color(0xFFE2E8F0);
+    final fieldBg = isDark ? AppTheme.surfaceDark : const Color(0xFFE2E8F0);
 
     return ListTile(
       title: Text(label, style: TextStyle(color: textColor, fontSize: 14)),

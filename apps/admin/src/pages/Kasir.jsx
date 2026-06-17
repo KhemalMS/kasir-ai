@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useProducts } from '../hooks/useProducts';
 import { useCreateOrder } from '../hooks/useOrders';
-import { useCreateExpense } from '../hooks/useExpenses';
 import { SkeletonCard, EmptyState } from '../components/LoadingStates';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
@@ -11,12 +10,121 @@ export default function Kasir() {
     const navigate = useNavigate();
     const { data: products = [], isLoading: productsLoading } = useProducts();
     const createOrder = useCreateOrder();
-    const createExpense = useCreateExpense();
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [showReceiptModal, setShowReceiptModal] = useState(false);
     const [showExpenseModal, setShowExpenseModal] = useState(false);
     const [focusedInputId, setFocusedInputId] = useState(1);
     const firstNominalRef = useRef(null);
+    const draftOrderSequenceRef = useRef(0);
+
+    // Store info (nama toko, alamat, telepon dari API)
+    const [storeInfo, setStoreInfo] = useState({
+        store_name: 'Kasir-AI',
+        store_address: '',
+        store_phone: '',
+    });
+
+    // Auto-print setting
+    const [autoPrint, setAutoPrint] = useState(() => {
+        return localStorage.getItem('kasir_auto_print') === 'true';
+    });
+
+    // Fetch store info on mount
+    useEffect(() => {
+        fetch(`${API_BASE}/api/settings/store`, { credentials: 'include' })
+            .then(r => r.json())
+            .then(data => {
+                if (data && typeof data === 'object') {
+                    setStoreInfo(prev => ({ ...prev, ...data }));
+                }
+            })
+            .catch(() => {
+                // Pakai default bila konfigurasi toko belum tersedia.
+            });
+    }, []);
+
+    // Fungsi cetak struk via iframe (hanya struk, bukan seluruh halaman)
+    const printReceipt = (order = lastOrder) => {
+        if (!order) return;
+        const formatNum = (v) => new Intl.NumberFormat('id-ID').format(v || 0);
+        const dateStr = order.createdAt
+            ? new Date(order.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase()
+              + ' • '
+              + new Date(order.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+            : '-';
+
+        const itemRows = (order.cart || []).map(item =>
+            `<tr><td>${item.name}</td><td style="text-align:right">${item.quantity}x</td><td style="text-align:right">Rp ${formatNum(item.price * item.quantity)}</td></tr>`
+        ).join('');
+
+        const paymentRows = (order.payments || []).map(p =>
+            `<tr><td>Bayar (${p.method})</td><td></td><td style="text-align:right">Rp ${formatNum(p.amount)}</td></tr>`
+        ).join('');
+
+        const htmlContent = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Struk ${order.id || ''}</title>
+<style>
+  @page { size: 80mm auto; margin: 2mm; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Courier New', monospace; font-size: 12px; width: 80mm; padding: 6px; color: #000; }
+  .center { text-align: center; }
+  .bold { font-weight: bold; }
+  .lg { font-size: 15px; }
+  .sm { font-size: 10px; }
+  .divider { border-top: 1px dashed #000; margin: 6px 0; }
+  table { width: 100%; border-collapse: collapse; }
+  td { vertical-align: top; padding: 1px 0; }
+</style></head><body>
+<div class="center bold lg">${storeInfo.store_name}</div>
+${storeInfo.store_address ? `<div class="center sm">${storeInfo.store_address}</div>` : ''}
+${storeInfo.store_phone ? `<div class="center sm">Telp: ${storeInfo.store_phone}</div>` : ''}
+<div class="divider"></div>
+<table>
+  <tr><td>No</td><td>:</td><td>${order.id || '-'}</td></tr>
+  <tr><td>Tanggal</td><td>:</td><td>${dateStr}</td></tr>
+  ${order.tableNumber ? `<tr><td>Meja</td><td>:</td><td>#${order.tableNumber}</td></tr>` : ''}
+  <tr><td>Tipe</td><td>:</td><td>${order.orderType === 'dine_in' ? 'Makan di Tempat' : 'Bawa Pulang'}</td></tr>
+</table>
+<div class="divider"></div>
+<table>${itemRows}</table>
+<div class="divider"></div>
+<table>
+  <tr><td>Subtotal</td><td style="text-align:right">Rp ${formatNum(order.subtotal)}</td></tr>
+  <tr><td>Pajak (10%)</td><td style="text-align:right">Rp ${formatNum(order.tax)}</td></tr>
+  <tr class="bold"><td>TOTAL</td><td style="text-align:right;font-size:14px">Rp ${formatNum(order.total)}</td></tr>
+  ${paymentRows}
+</table>
+<div class="divider"></div>
+<div class="center sm" style="margin-top:8px">Terima kasih atas kunjungan Anda!</div>
+<div class="center sm">Powered by Kasir-AI</div>
+</body></html>`;
+
+        const iframe = document.createElement('iframe');
+        iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:none;opacity:0;pointer-events:none;';
+        document.body.appendChild(iframe);
+        const doc = iframe.contentDocument || iframe.contentWindow.document;
+        doc.open();
+        doc.write(htmlContent);
+        doc.close();
+        iframe.onload = () => {
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+            setTimeout(() => {
+                if (document.body.contains(iframe)) document.body.removeChild(iframe);
+            }, 2000);
+        };
+        // Fallback jika onload tidak terpicu
+        setTimeout(() => {
+            try {
+                iframe.contentWindow.focus();
+                iframe.contentWindow.print();
+            } catch {
+                // Abaikan bila browser memblokir fallback print.
+            }
+            setTimeout(() => {
+                if (document.body.contains(iframe)) document.body.removeChild(iframe);
+            }, 2000);
+        }, 600);
+    };
 
     // Auto-focus the first nominal input when payment modal opens
     useEffect(() => {
@@ -75,8 +183,10 @@ export default function Kasir() {
     // Save current cart into drafted orders
     const saveOrder = () => {
         if (cart.length === 0) return;
+        const nextDraftNumber = draftOrderSequenceRef.current + 1;
+        draftOrderSequenceRef.current = nextDraftNumber;
         const newOrder = {
-            id: `ORD-${Math.floor(Math.random() * 10000)}`,
+            id: `ORD-DRAFT-${String(nextDraftNumber).padStart(3, '0')}`,
             cart: [...cart],
             total: cartTotal,
             type: orderType,
@@ -612,16 +722,21 @@ export default function Kasir() {
                                                     })),
                                                 };
                                                 const result = await createOrder.mutateAsync(orderData);
-                                                setLastOrder({
+                                                const completedOrder = {
                                                     ...orderData,
                                                     id: result?.id || `KAI-${Date.now().toString().slice(-6)}`,
                                                     createdAt: new Date(),
                                                     cart: [...cart],
-                                                });
+                                                };
+                                                setLastOrder(completedOrder);
                                                 setShowPaymentModal(false);
-                                                setShowReceiptModal(true);
                                                 clearCart();
                                                 setPaymentMethods([{ id: 1, type: 'Tunai', amount: 0, icon: 'payments', color: 'emerald' }]);
+                                                if (autoPrint) {
+                                                    setTimeout(() => printReceipt(completedOrder), 300);
+                                                } else {
+                                                    setShowReceiptModal(true);
+                                                }
                                             } catch (err) {
                                                 console.error('Order failed:', err);
                                                 setLastOrder({
@@ -669,8 +784,10 @@ export default function Kasir() {
                                     <div className="mb-3 p-3 rounded-full bg-primary/20 text-primary">
                                         <span className="material-symbols-outlined text-3xl">storefront</span>
                                     </div>
-                                    <h2 className="text-xl font-bold tracking-tight text-white mb-1">Kasir-AI</h2>
-                                    <p className="text-slate-400 text-sm font-medium">Cabang Jakarta Selatan</p>
+                                    <h2 className="text-xl font-bold tracking-tight text-white mb-1">{storeInfo.store_name}</h2>
+                                    {storeInfo.store_address && (
+                                        <p className="text-slate-400 text-sm font-medium">{storeInfo.store_address}</p>
+                                    )}
                                     {lastOrder?.tableNumber && (
                                         <div className="mt-1 text-primary text-[10px] font-bold tracking-widest uppercase">MEJA #{lastOrder.tableNumber}</div>
                                     )}
@@ -729,8 +846,8 @@ export default function Kasir() {
                                         </div>
                                     </div>
 
-                                    {/* Payment Method Status */}
-                                    <div className="mt-6 flex items-center justify-between rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-3">
+                                    {/* Payment Lunas Status */}
+                                    <div className="mt-6 flex items-center justify-between rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-3 mb-4">
                                         <div className="flex items-center gap-2">
                                             <span className="material-symbols-outlined text-emerald-500 text-lg">check_circle</span>
                                             <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wide">LUNAS</span>
@@ -738,27 +855,38 @@ export default function Kasir() {
                                         <span className="text-xs text-emerald-500/80 font-mono">ID: {lastOrder?.id || '-'}</span>
                                     </div>
 
-                                    {/* QR Code */}
-                                    <div className="mt-6 flex flex-col items-center gap-3 pb-8">
-                                        <div className="bg-white p-2 rounded-lg">
-                                            <div className="w-24 h-24 bg-white relative flex items-center justify-center overflow-hidden">
-                                                <img alt="QR Code" className="w-full h-full object-contain" src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${lastOrder?.id || 'ORDER'}`} />
-                                            </div>
-                                        </div>
-                                        <p className="text-[10px] text-slate-500 text-center uppercase tracking-widest">PINDAI UNTUK POIN LOYALITAS</p>
-                                    </div>
-
                                 </div>
 
                                 {/* Receipt Footer Actions */}
-                                <div className="p-4 bg-[#16202e] border-t border-white/5 flex flex-col gap-3 relative z-10 no-print">
+                                <div className="p-4 bg-[#16202e] border-t border-white/5 flex flex-col gap-3 relative z-10">
                                     <button
                                         className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary hover:bg-blue-600 transition-colors h-11 text-sm font-bold text-white shadow-lg shadow-primary/20"
-                                        onClick={() => window.print()}
+                                        onClick={() => printReceipt()}
                                     >
                                         <span className="material-symbols-outlined text-[20px]">print</span>
                                         Cetak Struk
                                     </button>
+                                    {/* Auto-print Toggle */}
+                                    <label className="flex items-center justify-between cursor-pointer px-1">
+                                        <div className="flex items-center gap-2 text-slate-400 text-xs">
+                                            <span className="material-symbols-outlined text-[16px]">autorenew</span>
+                                            Auto-print setelah checkout
+                                        </div>
+                                        <div
+                                            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                                                autoPrint ? 'bg-primary' : 'bg-slate-600'
+                                            }`}
+                                            onClick={() => {
+                                                const next = !autoPrint;
+                                                setAutoPrint(next);
+                                                localStorage.setItem('kasir_auto_print', String(next));
+                                            }}
+                                        >
+                                            <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
+                                                autoPrint ? 'translate-x-4' : 'translate-x-1'
+                                            }`} />
+                                        </div>
+                                    </label>
                                     <button
                                         className="flex w-full items-center justify-center gap-2 rounded-xl bg-transparent hover:bg-white/5 transition-colors h-11 text-sm font-bold text-white border border-white/5"
                                         onClick={() => setShowReceiptModal(false)}

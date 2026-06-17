@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { ordersService } from '../services/orders.service.js';
 import { validateBody } from '../middleware/validate.middleware.js';
@@ -35,28 +35,34 @@ const updateStatusSchema = z.object({
     status: z.enum(['pending', 'preparing', 'ready', 'completed', 'cancelled']),
 });
 
-router.get('/', async (req: Request, res: Response) => {
-    const orders = await ordersService.findAll({
-        branchId: req.query.branchId as string,
-        status: req.query.status as string,
-        shiftId: req.query.shiftId as string,
-        startDate: req.query.startDate ? new Date(req.query.startDate as string) : undefined,
-        endDate: req.query.endDate ? new Date(req.query.endDate as string) : undefined,
-    });
-    res.json(orders);
+router.get('/', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const orders = await ordersService.findAll({
+            branchId: req.query.branchId as string,
+            status: req.query.status as string,
+            shiftId: req.query.shiftId as string,
+            startDate: req.query.startDate ? new Date(req.query.startDate as string) : undefined,
+            endDate: req.query.endDate ? new Date(req.query.endDate as string) : undefined,
+        });
+        res.json(orders);
+    } catch (e) { next(e); }
 });
 
-router.get('/saved', async (req: Request, res: Response) => {
-    const shiftId = req.query.shiftId as string;
-    if (!shiftId) { res.status(400).json({ error: 'shiftId is required' }); return; }
-    const orders = await ordersService.getSavedOrders(shiftId);
-    res.json(orders);
+router.get('/saved', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const shiftId = req.query.shiftId as string;
+        if (!shiftId) { res.status(400).json({ error: 'shiftId is required' }); return; }
+        const orders = await ordersService.getSavedOrders(shiftId);
+        res.json(orders);
+    } catch (e) { next(e); }
 });
 
-router.get('/:id', async (req: Request<{ id: string }>, res: Response) => {
-    const order = await ordersService.findById(req.params.id);
-    if (!order) { res.status(404).json({ error: 'Order not found' }); return; }
-    res.json(order);
+router.get('/:id', async (req: Request<{ id: string }>, res: Response, next: NextFunction) => {
+    try {
+        const order = await ordersService.findById(req.params.id);
+        if (!order) { res.status(404).json({ error: 'Order not found' }); return; }
+        res.json(order);
+    } catch (e) { next(e); }
 });
 
 router.post('/', validateBody(createOrderSchema), async (req: Request, res: Response) => {
@@ -69,9 +75,11 @@ router.post('/', validateBody(createOrderSchema), async (req: Request, res: Resp
     }
 });
 
-router.put('/:id/status', validateBody(updateStatusSchema), async (req: Request<{ id: string }>, res: Response) => {
-    const order = await ordersService.updateStatus(req.params.id, req.body.status);
-    res.json(order);
+router.put('/:id/status', validateBody(updateStatusSchema), async (req: Request<{ id: string }>, res: Response, next: NextFunction) => {
+    try {
+        const order = await ordersService.updateStatus(req.params.id, req.body.status);
+        res.json(order);
+    } catch (e) { next(e); }
 });
 
 router.delete('/:id', async (req: Request<{ id: string }>, res: Response) => {

@@ -5,6 +5,44 @@ class SettingsProvider extends ChangeNotifier {
   String _language = 'Indonesia';
   String _theme = 'Gelap';
 
+  // ── Info Toko (dari API) ──
+  String storeName = 'Kasir-AI';
+  String storeAddress = '';
+  String storePhone = '';
+
+  // ── Pengaturan Printer ──
+  String printerName = '';
+  String printerAddress = ''; // MAC address BT printer
+  String paperSize = '80mm';
+  bool autoPrint = false;
+  bool autoCashDrawer = false;
+
+  // ── Kustomisasi Struk Pembeli ──
+  bool showLogo = false;
+  String logoPath = '';
+  String headerText = 'KASIR-AI POS';
+  String footerText = 'Terima kasih atas kunjungan Anda!';
+  bool showReceiptNo = true;
+  bool showOrderNo = true;
+  bool showTableNo = true;
+  bool showUser = true;
+  bool showItemCount = true;
+  bool showTotal = true;
+  bool showTax = true;
+  bool showChange = true;
+  String fontFamily = 'Monospace';
+  String fontSize = '12';
+  String marginTop = '2';
+  String marginBottom = '2';
+  String marginLeft = '2';
+  String marginRight = '2';
+
+  // ── Pengaturan Struk Dapur ──
+  bool kitchenShowTable = true;
+  bool kitchenShowTime = true;
+  bool kitchenShowNotes = true;
+  String kitchenFontSize = '16';
+
   String get language => _language;
   String get theme => _theme;
   bool get isDark => _theme == 'Gelap';
@@ -17,6 +55,40 @@ class SettingsProvider extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     _language = prefs.getString('app_language') ?? 'Indonesia';
     _theme = prefs.getString('app_theme') ?? 'Gelap';
+
+    // Printer
+    printerName = prefs.getString('printer_name') ?? '';
+    printerAddress = prefs.getString('printer_address') ?? '';
+    paperSize = prefs.getString('paper_size') ?? '80mm';
+    autoPrint = prefs.getBool('auto_print') ?? false;
+    autoCashDrawer = prefs.getBool('auto_cash_drawer') ?? false;
+
+    // Kustomisasi struk pembeli
+    showLogo = prefs.getBool('show_logo') ?? false;
+    logoPath = prefs.getString('logo_path') ?? '';
+    headerText = prefs.getString('header_text') ?? 'KASIR-AI POS';
+    footerText = prefs.getString('footer_text') ?? 'Terima kasih atas kunjungan Anda!';
+    showReceiptNo = prefs.getBool('show_receipt_no') ?? true;
+    showOrderNo = prefs.getBool('show_order_no') ?? true;
+    showTableNo = prefs.getBool('show_table_no') ?? true;
+    showUser = prefs.getBool('show_user') ?? true;
+    showItemCount = prefs.getBool('show_item_count') ?? true;
+    showTotal = prefs.getBool('show_total') ?? true;
+    showTax = prefs.getBool('show_tax') ?? true;
+    showChange = prefs.getBool('show_change') ?? true;
+    fontFamily = prefs.getString('font_family') ?? 'Monospace';
+    fontSize = prefs.getString('font_size') ?? '12';
+    marginTop = prefs.getString('margin_top') ?? '2';
+    marginBottom = prefs.getString('margin_bottom') ?? '2';
+    marginLeft = prefs.getString('margin_left') ?? '2';
+    marginRight = prefs.getString('margin_right') ?? '2';
+
+    // Struk dapur
+    kitchenShowTable = prefs.getBool('kitchen_show_table') ?? true;
+    kitchenShowTime = prefs.getBool('kitchen_show_time') ?? true;
+    kitchenShowNotes = prefs.getBool('kitchen_show_notes') ?? true;
+    kitchenFontSize = prefs.getString('kitchen_font_size') ?? '16';
+
     notifyListeners();
   }
 
@@ -31,6 +103,47 @@ class SettingsProvider extends ChangeNotifier {
     _theme = themeVal;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('app_theme', themeVal);
+    notifyListeners();
+  }
+
+  /// Simpan SEMUA pengaturan printer ke SharedPreferences
+  Future<void> savePrinterSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('printer_name', printerName);
+    await prefs.setString('printer_address', printerAddress);
+    await prefs.setString('paper_size', paperSize);
+    await prefs.setBool('auto_print', autoPrint);
+    await prefs.setBool('auto_cash_drawer', autoCashDrawer);
+    await prefs.setBool('show_logo', showLogo);
+    await prefs.setString('logo_path', logoPath);
+    await prefs.setString('header_text', headerText);
+    await prefs.setString('footer_text', footerText);
+    await prefs.setBool('show_receipt_no', showReceiptNo);
+    await prefs.setBool('show_order_no', showOrderNo);
+    await prefs.setBool('show_table_no', showTableNo);
+    await prefs.setBool('show_user', showUser);
+    await prefs.setBool('show_item_count', showItemCount);
+    await prefs.setBool('show_total', showTotal);
+    await prefs.setBool('show_tax', showTax);
+    await prefs.setBool('show_change', showChange);
+    await prefs.setString('font_family', fontFamily);
+    await prefs.setString('font_size', fontSize);
+    await prefs.setString('margin_top', marginTop);
+    await prefs.setString('margin_bottom', marginBottom);
+    await prefs.setString('margin_left', marginLeft);
+    await prefs.setString('margin_right', marginRight);
+    await prefs.setBool('kitchen_show_table', kitchenShowTable);
+    await prefs.setBool('kitchen_show_time', kitchenShowTime);
+    await prefs.setBool('kitchen_show_notes', kitchenShowNotes);
+    await prefs.setString('kitchen_font_size', kitchenFontSize);
+    notifyListeners();
+  }
+
+  /// Update info toko dari API (dipanggil saat app start)
+  void updateStoreInfo(Map<String, dynamic> data) {
+    storeName = data['store_name'] ?? storeName;
+    storeAddress = data['store_address'] ?? storeAddress;
+    storePhone = data['store_phone'] ?? storePhone;
     notifyListeners();
   }
 

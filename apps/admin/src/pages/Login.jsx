@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { getHomeForRole } from '../components/AuthGuard';
+import { getHomeForRole } from '../lib/auth-routes';
 
 export default function Login() {
     const [showPassword, setShowPassword] = useState(false);
@@ -30,7 +30,7 @@ export default function Login() {
                     : (location.state?.from || getHomeForRole(role));
                 navigate(destination, { replace: true });
             }
-        } catch (err) {
+        } catch {
             setError('Terjadi kesalahan. Silakan coba lagi.');
         } finally {
             setLoading(false);

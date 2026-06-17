@@ -103,5 +103,21 @@ router.get('/inventory-report', async (req: Request, res: Response) => {
     res.json(data);
 });
 
+router.get('/cash-flow', async (req: Request, res: Response) => {
+    const start = req.query.start ? new Date(req.query.start as string) : (() => { const d = new Date(); d.setDate(d.getDate() - 6); return d; })();
+    const end = req.query.end ? new Date(req.query.end as string) : new Date();
+    const branchId = req.query.branchId as string | undefined;
+    const data = await reportsService.getCashFlow(start, end, branchId);
+    res.json(data);
+});
+
+router.get('/expense-summary', async (req: Request, res: Response) => {
+    const start = req.query.start ? new Date(req.query.start as string) : (() => { const d = new Date(); d.setDate(d.getDate() - 29); return d; })();
+    const end = req.query.end ? new Date(req.query.end as string) : new Date();
+    const branchId = req.query.branchId as string | undefined;
+    const data = await reportsService.getExpenseSummaryByCategory(start, end, branchId);
+    res.json(data);
+});
+
 export default router;
 

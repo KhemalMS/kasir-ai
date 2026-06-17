@@ -1,15 +1,20 @@
 import React, { useState } from 'react';
 import { useStaff, useCreateStaff, useUpdateStaff, useDeleteStaff } from '../hooks/useStaff';
+import { useBranches } from '../hooks/useBranches';
 import { SkeletonRow, EmptyState } from '../components/LoadingStates';
+import { admin } from '../lib/auth-client';
 
 export default function Staf() {
     const [searchQuery, setSearchQuery] = useState('');
+    const [selectedBranchFilter, setSelectedBranchFilter] = useState('');
     const { data: staffList = [], isLoading } = useStaff({ search: searchQuery || undefined });
+    const { data: branches = [] } = useBranches();
     const createStaff = useCreateStaff();
     const updateStaff = useUpdateStaff();
     const deleteStaff = useDeleteStaff();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [currentStaf, setCurrentStaf] = useState(null);
+    const [isResettingPassword, setIsResettingPassword] = useState(false);
 
     const openModal = (staf = null) => {
         setCurrentStaf(staf);
@@ -28,6 +33,10 @@ export default function Staf() {
             branchId: formData.get('branch'),
             status: formData.get('status') === 'true' ? 'Aktif' : 'Tidak Aktif',
             img: formData.get('img') || null,
+            phone: formData.get('phone') || null,
+            gender: formData.get('gender') || null,
+            birthDate: formData.get('birthDate') || null,
+            emergencyContact: formData.get('emergencyContact') || null,
         };
 
         try {
@@ -51,11 +60,32 @@ export default function Staf() {
         }
     };
 
-    const filteredStaff = staffList.filter(staf =>
-        staf.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        staf.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        staf.role.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const filteredStaff = staffList.filter(staf => {
+        const matchesSearch = staf.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                              staf.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                              staf.role.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesBranch = selectedBranchFilter === '' || staf.branchId === selectedBranchFilter;
+        return matchesSearch && matchesBranch;
+    });
+
+    const handleResetPassword = async (staf) => {
+        const newPassword = prompt(`Masukkan password baru untuk ${staf.name}:`);
+        if (!newPassword) return;
+        
+        setIsResettingPassword(true);
+        try {
+            const { error } = await admin.changePassword({
+                userId: staf.userId,
+                password: newPassword,
+            });
+            if (error) throw new Error(error.message);
+            alert(`Password untuk ${staf.name} berhasil di-reset!`);
+        } catch (err) {
+            alert('Gagal mereset password: ' + err.message);
+        } finally {
+            setIsResettingPassword(false);
+        }
+    };
 
     return (
         <>
@@ -84,11 +114,11 @@ export default function Staf() {
                                 <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-[#111418] border border-[#3b4754] text-slate-200 text-sm rounded-lg pl-10 pr-4 py-2.5 focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all placeholder:text-slate-500" placeholder="Cari karyawan berdasarkan nama, peran atau email..." type="text" />
                             </div>
                             <div className="relative hidden md:block">
-                                <select className="appearance-none bg-[#111418] border border-[#3b4754] text-slate-200 text-sm rounded-lg pl-4 pr-10 py-2.5 focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none cursor-pointer">
-                                    <option>Semua Cabang</option>
-                                    <option>Pusat Kota (HQ)</option>
-                                    <option>Uptown Mall</option>
-                                    <option>Westside Plaza</option>
+                                <select value={selectedBranchFilter} onChange={(e) => setSelectedBranchFilter(e.target.value)} className="appearance-none bg-[#111418] border border-[#3b4754] text-slate-200 text-sm rounded-lg pl-4 pr-10 py-2.5 focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none cursor-pointer">
+                                    <option value="">Semua Cabang</option>
+                                    {branches.map(branch => (
+                                        <option key={branch.id} value={branch.id}>{branch.name}</option>
+                                    ))}
                                 </select>
                                 <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-lg">expand_more</span>
                             </div>
@@ -153,7 +183,9 @@ export default function Staf() {
                                                     {staff.role}
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4 text-slate-300">{staff.branch}</td>
+                                            <td className="px-6 py-4 text-slate-300">
+                                                {branches.find(b => b.id === staff.branchId)?.name || 'Cabang Tidak Diketahui'}
+                                            </td>
                                             <td className="px-6 py-4">
                                                 <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium border ${staff.status === 'Aktif' ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-slate-700/50 text-slate-400 border-[#3b4754]'}`}>
                                                     {staff.status}
@@ -179,7 +211,7 @@ export default function Staf() {
                         </div>
 
                         <div className="flex items-center justify-between px-6 py-4 border-t border-white/5 bg-white/[0.01]">
-                            <p className="text-sm text-slate-400">Menampilkan <span className="text-white font-medium">1-6</span> dari <span className="text-white font-medium">48</span> anggota staff</p>
+                            <p className="text-sm text-slate-400">Menampilkan <span className="text-white font-medium">{filteredStaff.length > 0 ? 1 : 0}-{filteredStaff.length}</span> dari <span className="text-white font-medium">{filteredStaff.length}</span> anggota staff</p>
                             <div className="flex items-center gap-2">
                                 <button className="px-3 py-1.5 rounded-lg border border-white/10 text-slate-400 text-sm hover:bg-white/5 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>
                                     Sebelumnya
@@ -235,11 +267,36 @@ export default function Staf() {
                                         </div>
                                         <div className="space-y-2">
                                             <label className="text-sm font-semibold text-slate-300">Cabang Tugas</label>
-                                            <select defaultValue={currentStaf?.branch || 'Downtown HQ'} name="branch" className="w-full bg-[#0d1117] border border-white/10 text-white rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all appearance-none cursor-pointer">
-                                                <option>Downtown HQ</option>
-                                                <option>Uptown Mall</option>
-                                                <option>HQ Office</option>
+                                            <select defaultValue={currentStaf?.branchId || ''} name="branchId" required className="w-full bg-[#0d1117] border border-white/10 text-white rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all appearance-none cursor-pointer">
+                                                <option value="" disabled>Pilih Cabang</option>
+                                                {branches.map(branch => (
+                                                    <option key={branch.id} value={branch.id}>{branch.name}</option>
+                                                ))}
                                             </select>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-semibold text-slate-300">Nomor Telepon</label>
+                                            <input defaultValue={currentStaf?.phone || ''} name="phone" className="w-full bg-[#0d1117] border border-white/10 text-white rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all placeholder-slate-500" placeholder="08123456789" type="text" />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-semibold text-slate-300">Kontak Darurat</label>
+                                            <input defaultValue={currentStaf?.emergencyContact || ''} name="emergencyContact" className="w-full bg-[#0d1117] border border-white/10 text-white rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all placeholder-slate-500" placeholder="08129876543" type="text" />
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-semibold text-slate-300">Jenis Kelamin</label>
+                                            <select defaultValue={currentStaf?.gender || ''} name="gender" className="w-full bg-[#0d1117] border border-white/10 text-white rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all appearance-none cursor-pointer">
+                                                <option value="">Tidak Disebutkan</option>
+                                                <option value="Laki-laki">Laki-laki</option>
+                                                <option value="Perempuan">Perempuan</option>
+                                            </select>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-semibold text-slate-300">Tanggal Lahir</label>
+                                            <input defaultValue={currentStaf?.birthDate || ''} name="birthDate" className="w-full bg-[#0d1117] border border-white/10 text-white rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all placeholder-slate-500" type="date" />
                                         </div>
                                     </div>
                                     <div className="space-y-2">
@@ -258,11 +315,16 @@ export default function Staf() {
                                 </div>
                             </form>
                         </div>
-                        <div className="p-6 border-t border-white/10 bg-white/5 flex items-center shrink-0">
+                        <div className="p-6 border-t border-white/10 bg-white/5 flex flex-wrap items-center gap-3 shrink-0">
                             {currentStaf && (
-                                <button type="button" onClick={() => handleDelete(currentStaf.id)} className="px-4 py-2.5 rounded-lg border border-red-500/20 bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white text-sm font-bold transition-colors">
-                                    Hapus
-                                </button>
+                                <>
+                                    <button type="button" onClick={() => handleDelete(currentStaf.id)} className="px-4 py-2.5 rounded-lg border border-red-500/20 bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white text-sm font-bold transition-colors">
+                                        Hapus
+                                    </button>
+                                    <button type="button" onClick={() => handleResetPassword(currentStaf)} disabled={isResettingPassword} className="px-4 py-2.5 rounded-lg border border-orange-500/20 bg-orange-500/10 text-orange-400 hover:bg-orange-500 hover:text-white text-sm font-bold transition-colors disabled:opacity-50">
+                                        {isResettingPassword ? 'Loading...' : 'Reset Password'}
+                                    </button>
+                                </>
                             )}
                             <div className="flex-1"></div>
                             <div className="flex gap-3">

@@ -22,17 +22,13 @@ export default function Inventaris() {
 
         const qData = parseFloat(formData.get('quantity'));
         let newStatus = formData.get('status');
-        let isUrgent = newStatus === 'Habis';
         if (newStatus === 'Otomatis') {
             if (qData <= 0) {
                 newStatus = 'Habis';
-                isUrgent = true;
             } else if (qData < 10) {
                 newStatus = 'Rendah';
-                isUrgent = false;
             } else {
                 newStatus = 'Aman';
-                isUrgent = false;
             }
         }
 

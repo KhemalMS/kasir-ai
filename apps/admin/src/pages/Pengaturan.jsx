@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { usePaymentMethods, useTaxes, useCreatePaymentMethod, useUpdatePaymentMethod, useDeletePaymentMethod, useCreateTax, useUpdateTax, useDeleteTax, useSettings, useUpdateSettings } from '../hooks/useSettings';
+import { usePaymentMethods, useTaxes, useCreatePaymentMethod, useUpdatePaymentMethod, useDeletePaymentMethod, useCreateTax, useUpdateTax, useDeleteTax } from '../hooks/useSettings';
 
 export default function Pengaturan() {
     const [activeTab, setActiveTab] = useState('kustomisasi-struk');

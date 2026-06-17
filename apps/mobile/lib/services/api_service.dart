@@ -36,6 +36,14 @@ class ApiService {
     return prefs.getString('session_cookie');
   }
 
+  /// Synchronous getter for Bearer token (used by dart:html XHR on web)
+  static String? get sessionBearerToken {
+    if (_sessionCookie == null) return null;
+    return _sessionCookie!.contains('=')
+        ? _sessionCookie!.split('=').sublist(1).join('=')
+        : _sessionCookie;
+  }
+
   static Map<String, String> get _headers {
     final headers = <String, String>{
       'Content-Type': 'application/json',
@@ -102,6 +110,39 @@ class ApiService {
     );
   }
 
+  static Future<Map<String, dynamic>> uploadMultipart(
+      String path, String fieldName, List<int> bytes, String filename) async {
+    final uri = Uri.parse('${ApiConfig.baseUrl}$path');
+    final request = http.MultipartRequest('POST', uri);
+    
+    // Set headers
+    if (_sessionCookie != null) {
+      final token = _sessionCookie!.contains('=')
+          ? _sessionCookie!.split('=').sublist(1).join('=')
+          : _sessionCookie!;
+      request.headers['Authorization'] = 'Bearer $token';
+      request.headers['Cookie'] = _sessionCookie!;
+    }
+    
+    // Add file
+    request.files.add(
+      http.MultipartFile.fromBytes(
+        fieldName,
+        bytes,
+        filename: filename,
+      ),
+    );
+    
+    // Send request
+    final streamedResponse = await request.send().timeout(
+      Duration(seconds: 60), // longer timeout for uploads
+      onTimeout: () => throw ApiException('Upload timeout', 408),
+    );
+    
+    final response = await http.Response.fromStream(streamedResponse);
+    return _handleResponse(response);
+  }
+
   static Future<Map<String, dynamic>> get(String path) async {
     final response = await _timedGet(
       Uri.parse('${ApiConfig.baseUrl}$path'), _headers);
@@ -149,6 +190,11 @@ class ApiService {
       if (body is Map<String, dynamic>) return body;
       return {'data': body};
     }
+
+    if (response.statusCode == 401) {
+      clearAuth();
+    }
+
     String message = 'Error ${response.statusCode}';
     try {
       final body = jsonDecode(response.body);

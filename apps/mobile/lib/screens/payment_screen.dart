@@ -258,7 +258,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
             height: 56,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
-              color: const Color(0xFF0F1115),
+              color: AppTheme.bgDark,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
             ),
@@ -355,7 +355,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: const Color(0xFF0F1115),
+          color: AppTheme.bgDark,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
         ),
@@ -367,7 +367,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
   Widget _numpadButton(String key) {
     final isSpecial = key == 'C' || key == '⌫';
     return Material(
-      color: isSpecial ? Colors.white.withValues(alpha: 0.05) : const Color(0xFF0F1115),
+      color: isSpecial ? Colors.white.withValues(alpha: 0.05) : AppTheme.bgDark,
       borderRadius: BorderRadius.circular(10),
       child: InkWell(
         onTap: () => _onNumpadTap(key),

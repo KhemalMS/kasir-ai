@@ -66,7 +66,7 @@ class _KitchenDisplayScreenState extends State<KitchenDisplayScreen> {
   Color _statusColor(String status) {
     switch (status) {
       case 'Sukses': return const Color(0xFFFF6B35);
-      case 'Disiapkan': return const Color(0xFF3B82F6);
+      case 'Disiapkan': return AppTheme.primary;
       case 'Selesai': return AppTheme.success;
       default: return AppTheme.textMuted;
     }
@@ -119,7 +119,7 @@ class _KitchenDisplayScreenState extends State<KitchenDisplayScreen> {
     final doneCount = _tickets.where((t) => t['status'] == 'Selesai').length;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0D14),
+      backgroundColor: AppTheme.bgDark,
       body: SafeArea(
         child: Column(
           children: [
@@ -127,8 +127,8 @@ class _KitchenDisplayScreenState extends State<KitchenDisplayScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: const BoxDecoration(
-                color: Color(0xFF111827),
-                border: Border(bottom: BorderSide(color: Color(0xFF1F2937))),
+                color: AppTheme.cardDark,
+                border: Border(bottom: BorderSide(color: AppTheme.surfaceDark)),
               ),
               child: Row(
                 children: [
@@ -145,21 +145,21 @@ class _KitchenDisplayScreenState extends State<KitchenDisplayScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('Kitchen Display', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white)),
-                      Text('Tampilan Dapur', style: TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
+                      Text('Tampilan Dapur', style: TextStyle(fontSize: 11, color: AppTheme.textMuted)),
                     ],
                   ),
                   const Spacer(),
                   // Live counts
                   _countBadge('Baru', newCount, const Color(0xFFFF6B35)),
                   const SizedBox(width: 8),
-                  _countBadge('Proses', prepCount, const Color(0xFF3B82F6)),
+                  _countBadge('Proses', prepCount, AppTheme.primary),
                   const SizedBox(width: 8),
                   _countBadge('Selesai', doneCount, AppTheme.success),
                   const SizedBox(width: 12),
                   // Refresh
                   IconButton(
                     onPressed: _loadTickets,
-                    icon: const Icon(Icons.refresh, color: Color(0xFF9CA3AF)),
+                    icon: const Icon(Icons.refresh, color: AppTheme.textMuted),
                     tooltip: 'Refresh',
                   ),
                   // Back
@@ -175,7 +175,7 @@ class _KitchenDisplayScreenState extends State<KitchenDisplayScreen> {
             // Filter tabs
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              color: const Color(0xFF111827),
+              color: AppTheme.cardDark,
               child: Row(
                 children: _filters.map((f) {
                   final isActive = _filter == f;
@@ -200,7 +200,7 @@ class _KitchenDisplayScreenState extends State<KitchenDisplayScreen> {
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-                            color: isActive ? const Color(0xFFFF6B35) : const Color(0xFF9CA3AF),
+                            color: isActive ? const Color(0xFFFF6B35) : AppTheme.textMuted,
                           ),
                         ),
                       ),
@@ -219,11 +219,11 @@ class _KitchenDisplayScreenState extends State<KitchenDisplayScreen> {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.restaurant, size: 80, color: const Color(0xFF1F2937)),
+                              Icon(Icons.restaurant, size: 80, color: AppTheme.surfaceDark),
                               const SizedBox(height: 16),
-                              const Text('Belum ada pesanan', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Color(0xFF6B7280))),
+                              const Text('Belum ada pesanan', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: AppTheme.textMuted)),
                               const SizedBox(height: 4),
-                              const Text('Pesanan baru akan muncul di sini', style: TextStyle(fontSize: 13, color: Color(0xFF4B5563))),
+                              const Text('Pesanan baru akan muncul di sini', style: TextStyle(fontSize: 13, color: AppTheme.textMuted)),
                             ],
                           ),
                         )
@@ -280,7 +280,7 @@ class _KitchenDisplayScreenState extends State<KitchenDisplayScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF111827),
+        color: AppTheme.cardDark,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: sColor.withValues(alpha: 0.4), width: 1.5),
       ),
@@ -305,8 +305,8 @@ class _KitchenDisplayScreenState extends State<KitchenDisplayScreen> {
                       Text('#$orderNum', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
                       if (orderType.isNotEmpty || tableNum != null)
                         Text(
-                          '${orderType}${tableNum != null ? ' • Meja $tableNum' : ''}',
-                          style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
+                          '$orderType${tableNum != null ? ' • Meja $tableNum' : ''}',
+                          style: const TextStyle(fontSize: 11, color: AppTheme.textMuted),
                         ),
                     ],
                   ),
@@ -336,7 +336,7 @@ class _KitchenDisplayScreenState extends State<KitchenDisplayScreen> {
             child: ListView.separated(
               padding: const EdgeInsets.fromLTRB(14, 10, 14, 6),
               itemCount: items.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 6),
+              separatorBuilder: (_, _) => const SizedBox(height: 6),
               itemBuilder: (ctx, i) {
                 final item = items[i];
                 final product = item['product'] ?? {};
@@ -382,7 +382,7 @@ class _KitchenDisplayScreenState extends State<KitchenDisplayScreen> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: const BoxDecoration(
-              border: Border(top: BorderSide(color: Color(0xFF1F2937))),
+              border: Border(top: BorderSide(color: AppTheme.surfaceDark)),
             ),
             child: _actionButton(status, ticket['id']),
           ),

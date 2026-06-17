@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import '../config/app_theme.dart';
-import '../utils/web_print.dart' if (dart.library.io) '../utils/web_print_stub.dart';
+import '../providers/settings_provider.dart';
+import '../services/print_service.dart';
 
 class ReceiptScreen extends StatelessWidget {
   final String orderNumber;
@@ -31,97 +32,55 @@ class ReceiptScreen extends StatelessWidget {
   }
 
   void _handlePrint(BuildContext context) {
-    if (!kIsWeb) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cetak tersedia via web browser')),
-      );
-      return;
-    }
-    
-    final now = DateTime.now();
-    final dateStr = DateFormat('dd/MM/yyyy HH:mm').format(now);
-
-    final itemsHtml = items.map((item) {
-      final qty = item['quantity'] as int;
-      final price = item['price'] as int;
-      final subtotal = qty * price;
-      final notes = item['notes']?.toString() ?? '';
-      final notesRow = notes.isNotEmpty
-          ? '<tr><td colspan="3" style="padding:0 0 2px 8px;font-style:italic;font-size:10px;color:#666">📝 $notes</td></tr>'
-          : '';
-      return '<tr><td colspan="3" style="padding:2px 0 0 0;">${item['name']}</td></tr>'
-             '<tr><td style="padding:0 0 2px 8px;">$qty x ${_formatCurrency(price)}</td><td></td>'
-             '<td style="text-align:right">Rp ${_formatCurrency(subtotal)}</td></tr>'
-             '$notesRow';
-    }).join('');
-
-    final changeHtml = paymentMethod == 'Tunai'
-      ? '<tr style="font-weight:bold"><td>Kembali</td><td></td><td style="text-align:right">Rp ${_formatCurrency(changeAmount)}</td></tr>'
-      : '';
-
-    final html = '''<!DOCTYPE html><html><head><meta charset="utf-8"><title>Struk $orderNumber</title>
-<style>@page{margin:0;size:80mm auto}*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Courier New',monospace;font-size:12px;width:80mm;padding:8px;color:#000}
-.c{text-align:center}.b{font-weight:bold}.d{border-top:1px dashed #000;margin:6px 0}
-table{width:100%;border-collapse:collapse}td{vertical-align:top}.r{text-align:right}
-.lg{font-size:14px}.sm{font-size:10px}</style></head><body>
-<div class="c b lg">KASIR-AI POS</div><div class="c sm">Jl. Contoh No. 123</div>
-<div class="c sm">Telp: 021-1234567</div><div class="d"></div>
-<table><tr><td>No</td><td>: </td><td>$orderNumber</td></tr>
-<tr><td>Tanggal</td><td>: </td><td>$dateStr</td></tr>
-<tr><td>Kasir</td><td>: </td><td>$cashierName</td></tr>
-<tr><td>Tipe</td><td>: </td><td>$orderType</td></tr></table><div class="d"></div>
-<table>$itemsHtml</table><div class="d"></div>
-<table><tr class="b"><td>TOTAL</td><td></td><td class="r lg">Rp ${_formatCurrency(totalAmount)}</td></tr>
-<tr><td>Bayar ($paymentMethod)</td><td></td><td class="r">Rp ${_formatCurrency(paidAmount)}</td></tr>
-$changeHtml</table><div class="d"></div>
-<div class="c sm" style="margin-top:8px">Terima kasih atas kunjungan Anda!<br>
-Barang yang sudah dibeli<br>tidak dapat ditukar/dikembalikan</div>
-<div class="c sm" style="margin-top:8px">Powered by Kasir-AI</div>
-<script>window.onload=function(){window.print()}</script></body></html>''';
-
-    printReceiptHtml(html);
+    final settings = context.read<SettingsProvider>();
+    PrintService.printReceipt(
+      context: context,
+      orderNumber: orderNumber,
+      paymentMethod: paymentMethod,
+      totalAmount: totalAmount,
+      paidAmount: paidAmount,
+      changeAmount: changeAmount,
+      items: items,
+      cashierName: cashierName,
+      orderType: orderType,
+      storeName: settings.storeName,
+      storeAddress: settings.storeAddress,
+      storePhone: settings.storePhone,
+      showReceiptNo: settings.showReceiptNo,
+      showOrderNo: settings.showOrderNo,
+      showTableNo: settings.showTableNo,
+      showUser: settings.showUser,
+      showTotal: settings.showTotal,
+      showTax: settings.showTax,
+      showChange: settings.showChange,
+      headerText: settings.headerText,
+      footerText: settings.footerText,
+      paperSize: settings.paperSize,
+      fontFamily: settings.fontFamily,
+      fontSize: settings.fontSize,
+      marginTop: settings.marginTop,
+      marginBottom: settings.marginBottom,
+      marginLeft: settings.marginLeft,
+      marginRight: settings.marginRight,
+    );
   }
 
   void _handleKitchenPrint(BuildContext context) {
-    if (!kIsWeb) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cetak tersedia via web browser')),
-      );
-      return;
-    }
-
-    final now = DateTime.now();
-    final timeStr = DateFormat('HH:mm').format(now);
-
-    final kitchenItems = items.map((item) {
-      final qty = item['quantity'] as int;
-      final notes = item['notes']?.toString() ?? '';
-      final notesHtml = notes.isNotEmpty
-          ? '<div style="font-size:12px;font-style:italic;color:#555;padding-left:16px;margin-bottom:4px">📝 $notes</div>'
-          : '';
-      return '<div style="font-size:16px;font-weight:bold;padding:3px 0">${qty}x  ${item['name']}</div>$notesHtml';
-    }).join('');
-
-    final html = '''<!DOCTYPE html><html><head><meta charset="utf-8"><title>Kitchen $orderNumber</title>
-<style>@page{margin:2mm;size:80mm auto}*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:monospace;font-size:14px;width:72mm;padding:4px;color:#000}
-.c{text-align:center}.d{border-top:1px dashed #000;margin:6px 0}
-table{width:100%;border-collapse:collapse}td{vertical-align:top;padding:2px 0}
-.hdr{font-size:24px;font-weight:900;letter-spacing:2px}</style></head><body>
-<div class="c"><div class="hdr">🍳 DAPUR</div></div><div class="d"></div>
-<table>
-<tr><td>No</td><td style="text-align:right;font-weight:bold">$orderNumber</td></tr>
-<tr><td>Waktu</td><td style="text-align:right;font-weight:bold">$timeStr</td></tr>
-<tr><td>Tipe</td><td style="text-align:right">$orderType</td></tr>
-</table><div class="d"></div>
-$kitchenItems
-<div class="d"></div>
-<div class="c" style="font-size:11px;color:#888;margin-top:4px">── KITCHEN TICKET ──</div>
-<script>window.onload=function(){window.print()}</script></body></html>''';
-
-    printReceiptHtml(html);
+    final settings = context.read<SettingsProvider>();
+    PrintService.printKitchenTicket(
+      context: context,
+      orderNumber: orderNumber,
+      orderType: orderType,
+      items: items,
+      showTable: settings.kitchenShowTable,
+      showTime: settings.kitchenShowTime,
+      showNotes: settings.kitchenShowNotes,
+      kitchenFontSize: settings.kitchenFontSize,
+      paperSize: settings.paperSize,
+    );
   }
+
+
 
   @override
   Widget build(BuildContext context) {

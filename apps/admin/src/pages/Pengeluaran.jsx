@@ -1,9 +1,6 @@
 import React, { useState } from 'react';
-import { useExpenses, useCreateExpense } from '../hooks/useExpenses';
 
 export default function Pengeluaran() {
-    const { data: expenses = [], isLoading } = useExpenses();
-    const createExpense = useCreateExpense();
     const [showExpenseModal, setShowExpenseModal] = useState(false);
 
     return (

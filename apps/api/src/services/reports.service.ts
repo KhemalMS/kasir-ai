@@ -361,5 +361,104 @@ export const reportsService = {
             isCritical: Number(r.quantity) <= Number(r.reorderThreshold),
         }));
     },
+
+    async getCashFlow(startDate: Date, endDate: Date, branchId?: string) {
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+
+        const results = [];
+        const current = new Date(start);
+
+        while (current <= end) {
+            const dayStart = new Date(current);
+            dayStart.setHours(0, 0, 0, 0);
+            const dayEnd = new Date(current);
+            dayEnd.setHours(23, 59, 59, 999);
+
+            // Cash in: completed orders
+            const revConditions: any[] = [
+                between(orders.createdAt, dayStart, dayEnd),
+                eq(orders.status, 'Sukses'),
+            ];
+            if (branchId) revConditions.push(eq(orders.branchId, branchId));
+
+            const [rev] = await db
+                .select({ total: sum(orders.totalAmount), count: count(orders.id) })
+                .from(orders)
+                .where(and(...revConditions));
+
+            // Cash out: expenses
+            const expConditions: any[] = [
+                between(expenses.createdAt, dayStart, dayEnd),
+            ];
+            if (branchId) expConditions.push(eq(expenses.branchId, branchId));
+
+            const [exp] = await db
+                .select({ total: sum(expenses.amount), count: count(expenses.id) })
+                .from(expenses)
+                .where(and(...expConditions));
+
+            const cashIn = Number(rev?.total) || 0;
+            const cashOut = Number(exp?.total) || 0;
+
+            results.push({
+                date: current.toISOString().split('T')[0],
+                label: current.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }),
+                cashIn,
+                cashOut,
+                netFlow: cashIn - cashOut,
+                transactionCount: Number(rev?.count) || 0,
+                expenseCount: Number(exp?.count) || 0,
+            });
+
+            current.setDate(current.getDate() + 1);
+        }
+
+        // Compute running balance
+        let runningBalance = 0;
+        for (const row of results) {
+            runningBalance += row.netFlow;
+            (row as any).runningBalance = runningBalance;
+        }
+
+        return results;
+    },
+
+    async getExpenseSummaryByCategory(startDate: Date, endDate: Date, branchId?: string) {
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+
+        const conditions: any[] = [
+            between(expenses.createdAt, start, end),
+        ];
+        if (branchId) conditions.push(eq(expenses.branchId, branchId));
+
+        const rows = await db
+            .select({
+                category: expenses.category,
+                total: sum(expenses.amount),
+                count: count(expenses.id),
+            })
+            .from(expenses)
+            .where(and(...conditions))
+            .groupBy(expenses.category)
+            .orderBy(desc(sum(expenses.amount)));
+
+        const totalExpenses = rows.reduce((acc, r) => acc + (Number(r.total) || 0), 0);
+
+        return {
+            categories: rows.map(r => ({
+                category: r.category,
+                total: Number(r.total) || 0,
+                count: Number(r.count) || 0,
+                percentage: totalExpenses > 0 ? Math.round(((Number(r.total) || 0) / totalExpenses) * 100) : 0,
+            })),
+            totalExpenses,
+        };
+    },
 };
 

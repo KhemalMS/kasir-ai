@@ -1,27 +1,7 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-
-// Maps role to its default landing page
-const ROLE_HOME = {
-    admin: '/dashboard',
-    kasir: '/mulai-shift',
-    kitchen: '/dapur',
-};
-
-// Maps role to allowed route prefixes
-const ROLE_ROUTES = {
-    admin: null, // admin can access everything
-    kasir: ['/kasir', '/mulai-shift', '/tutup-shift'],
-    kitchen: ['/dapur'],
-};
-
-/**
- * Returns the home page for a given role.
- */
-export function getHomeForRole(role) {
-    return ROLE_HOME[role] || '/dashboard';
-}
+import { getHomeForRole, ROLE_ROUTES } from '../lib/auth-routes';
 
 /**
  * Protects routes that require authentication.

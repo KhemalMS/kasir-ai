@@ -19,6 +19,17 @@ router.put('/', async (req: Request, res: Response) => {
     res.json(results);
 });
 
+// Store info
+router.get('/store', async (_req: Request, res: Response) => {
+    const info = await settingsService.getStoreInfo();
+    res.json(info);
+});
+
+router.put('/store', async (req: Request, res: Response) => {
+    const result = await settingsService.updateStoreInfo(req.body);
+    res.json(result);
+});
+
 // Payment methods
 router.get('/payment-methods', async (_req: Request, res: Response) => {
     const methods = await settingsService.getPaymentMethods();

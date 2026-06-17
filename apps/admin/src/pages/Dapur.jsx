@@ -46,7 +46,7 @@ export default function Dapur() {
     const [activeFilter, setActiveFilter] = useState('Semua');
     const navigate = useNavigate();
 
-    const toggleItem = (ticketId, itemId) => {
+    const toggleItem = () => {
         // Visual toggle only – API doesn't support per-item check
     };
 

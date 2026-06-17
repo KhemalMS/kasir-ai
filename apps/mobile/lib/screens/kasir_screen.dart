@@ -22,11 +22,13 @@ class _KasirScreenState extends State<KasirScreen> {
   final _formatter = NumberFormat('#,###', 'id_ID');
   List<dynamic> _products = [];
   List<dynamic> _categories = [];
-  List<Map<String, dynamic>> _cart = [];
+  final List<Map<String, dynamic>> _cart = [];
   String? _selectedCategoryId;
   String _orderType = 'Makan di Tempat';
   String _tableNumber = '';
   final _tableNumberController = TextEditingController();
+  final _searchController = TextEditingController();
+  String _searchQuery = '';
   bool _isLoadingProducts = true;
   String? _loadError;
   List<dynamic> _shiftOrders = [];
@@ -66,6 +68,8 @@ class _KasirScreenState extends State<KasirScreen> {
       
       if (mounted) {
         setState(() {
+          // Sort categories A-Z
+          cats.sort((a, b) => (a['name'] ?? '').toString().compareTo((b['name'] ?? '').toString()));
           _categories = cats;
           _products = prods;
           _isLoadingProducts = false;
@@ -83,14 +87,23 @@ class _KasirScreenState extends State<KasirScreen> {
   }
 
   List<dynamic> get _filteredProducts {
-    if (_selectedCategoryId == null) return _products;
-    return _products.where((p) => p['categoryId'] == _selectedCategoryId).toList();
+    var filtered = _products;
+    if (_selectedCategoryId != null) {
+      filtered = filtered.where((p) => p['categoryId'] == _selectedCategoryId).toList();
+    }
+    if (_searchQuery.isNotEmpty) {
+      final q = _searchQuery.toLowerCase();
+      filtered = filtered.where((p) => (p['name']?.toString().toLowerCase() ?? '').contains(q)).toList();
+    }
+    return filtered;
   }
 
   int get _subtotal => _cart.fold(0, (sum, item) =>
       sum + ((item['price'] as int) * (item['quantity'] as int)));
+  
+  int get _taxAmount => (_subtotal * 0.10).round(); // 10% tax
 
-  int get _totalAmount => _subtotal;
+  int get _totalAmount => _subtotal + _taxAmount;
 
   void _addToCart(Map<String, dynamic> product) {
     final variants = product['variants'] as List<dynamic>? ?? [];
@@ -111,7 +124,7 @@ class _KasirScreenState extends State<KasirScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: isDark ? const Color(0xFF111827) : Colors.white,
+      backgroundColor: isDark ? AppTheme.cardDark : Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -222,9 +235,121 @@ class _KasirScreenState extends State<KasirScreen> {
           'price': price,
           'quantity': 1,
           'notes': '',
+          'imageUrl': product['imageUrl'],
         });
       }
     });
+  }
+
+  void _showChangeVariantSheet(int cartIdx, Map<String, dynamic> product, List<dynamic> variants) {
+    final settings = context.read<SettingsProvider>();
+    final isDark = settings.isDark;
+    final textColor = isDark ? AppTheme.textWhite : AppTheme.textDark;
+    final mutedColor = isDark ? AppTheme.textMuted : AppTheme.textMutedLight;
+    final basePrice = (product['price'] as num?)?.toInt() ?? 0;
+    final currentVariantId = _cart[cartIdx]['variantId'];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: isDark ? AppTheme.surfaceDark : Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (ctx) => ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.6),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.style, color: AppTheme.primary, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text('Ubah Variasi — ${product['name']}', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: textColor))),
+                  IconButton(onPressed: () => Navigator.pop(ctx), icon: Icon(Icons.close, color: mutedColor, size: 20)),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Flexible(child: SingleChildScrollView(child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Base product
+                  _variantOption(ctx, cartIdx, product, null, null, basePrice, basePrice, currentVariantId, textColor, mutedColor, isDark),
+                  // Variants
+                  ...variants.map((v) {
+                    final mod = (v['priceModifier'] as num?)?.toInt() ?? 0;
+                    return _variantOption(ctx, cartIdx, product, v['id'], v['name'], basePrice + mod, mod, currentVariantId, textColor, mutedColor, isDark);
+                  }),
+                ],
+              ))),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _variantOption(BuildContext ctx, int cartIdx, Map<String, dynamic> product, String? variantId, String? variantName, int totalPrice, int mod, String? currentVariantId, Color textColor, Color mutedColor, bool isDark) {
+    final isSelected = currentVariantId == variantId;
+    final modStr = mod > 0 && variantId != null ? ' (+Rp ${_formatter.format(mod)})' : mod < 0 && variantId != null ? ' (-Rp ${_formatter.format(mod.abs())})' : '';
+    return InkWell(
+      onTap: () {
+        Navigator.pop(ctx);
+        if (!isSelected) {
+          setState(() {
+            final qty = _cart[cartIdx]['quantity'] as int;
+            final notes = _cart[cartIdx]['notes'] as String;
+            // Remove old
+            _cart.removeAt(cartIdx);
+            // Add new or merge
+            final cartKey = '${product['id']}_${variantId ?? 'base'}';
+            final existingIdx = _cart.indexWhere((i) => i['_cartKey'] == cartKey);
+            if (existingIdx >= 0) {
+              _cart[existingIdx]['quantity'] = (_cart[existingIdx]['quantity'] as int) + qty;
+              if (notes.isNotEmpty) {
+                final exNotes = _cart[existingIdx]['notes'] as String;
+                _cart[existingIdx]['notes'] = exNotes.isEmpty ? notes : '$exNotes | $notes';
+              }
+            } else {
+              _cart.insert(cartIdx >= _cart.length ? _cart.length : cartIdx, {
+                '_cartKey': cartKey,
+                'productId': product['id'],
+                'variantId': variantId,
+                'variantName': variantName,
+                'name': product['name'],
+                'price': totalPrice,
+                'quantity': qty,
+                'notes': notes,
+                'imageUrl': product['imageUrl'],
+              });
+            }
+          });
+        }
+      },
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        margin: const EdgeInsets.only(bottom: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? AppTheme.primary.withOpacity(0.1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: isSelected ? AppTheme.primary : (isDark ? const Color(0xFF374151) : const Color(0xFFE2E8F0))),
+        ),
+        child: Row(
+          children: [
+            Expanded(child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(variantName ?? 'Original', style: TextStyle(color: isSelected ? AppTheme.primary : textColor, fontWeight: FontWeight.w600)),
+                if (modStr.isNotEmpty) Text(modStr, style: TextStyle(color: mutedColor, fontSize: 11)),
+              ],
+            )),
+            Text('Rp ${_formatter.format(totalPrice)}', style: TextStyle(color: isSelected ? AppTheme.primary : textColor, fontWeight: FontWeight.w700)),
+          ],
+        ),
+      ),
+    );
   }
 
   void _updateQuantity(int idx, int delta) {
@@ -256,7 +381,7 @@ class _KasirScreenState extends State<KasirScreen> {
         orderType: _orderType,
         tableNumber: _tableNumber.isEmpty ? null : _tableNumber,
         subtotal: _subtotal,
-        taxAmount: 0,
+        taxAmount: _taxAmount,
         serviceAmount: 0,
         totalAmount: _totalAmount,
         items: _cart.map((item) => <String, dynamic>{
@@ -368,24 +493,60 @@ class _KasirScreenState extends State<KasirScreen> {
   }
 
   Widget _buildTopBar(Color cardColor, Color textColor, Color mutedColor, Color borderColor, Color subtleBg, bool isDark) {
+    final auth = context.watch<AuthProvider>();
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: BoxDecoration(
         color: cardColor,
         border: Border(bottom: BorderSide(color: borderColor)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.point_of_sale, color: AppTheme.primary, size: 24),
-          const SizedBox(width: 10),
-          Text(
-            'Kasir POS',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: textColor),
+          // Logo
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppTheme.primary.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(Icons.point_of_sale, color: AppTheme.primary, size: 20),
           ),
+          const SizedBox(width: 12),
+          Text(
+            'Kasir-AI',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: textColor),
+          ),
+          
           const Spacer(),
+
+          // Center Search Bar
+          SizedBox(
+            width: 320,
+            height: 40,
+            child: TextField(
+              controller: _searchController,
+              onChanged: (v) => setState(() => _searchQuery = v),
+              style: TextStyle(fontSize: 14, color: textColor),
+              decoration: InputDecoration(
+                hintText: 'Cari menu...',
+                hintStyle: TextStyle(color: mutedColor, fontSize: 13),
+                prefixIcon: Icon(Icons.search, size: 18, color: mutedColor),
+                filled: true,
+                fillColor: subtleBg,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+          ),
+
+          const Spacer(),
+
           // Order type selector
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             decoration: BoxDecoration(
               color: subtleBg,
               borderRadius: BorderRadius.circular(8),
@@ -395,7 +556,8 @@ class _KasirScreenState extends State<KasirScreen> {
               dropdownColor: cardColor,
               underline: const SizedBox(),
               isDense: true,
-              style: TextStyle(fontSize: 13, color: textColor),
+              style: TextStyle(fontSize: 13, color: textColor, fontWeight: FontWeight.w600),
+              icon: Icon(Icons.arrow_drop_down, color: mutedColor),
               items: const [
                 DropdownMenuItem(value: 'Makan di Tempat', child: Text('Dine In')),
                 DropdownMenuItem(value: 'Bungkus', child: Text('Take Away')),
@@ -411,7 +573,7 @@ class _KasirScreenState extends State<KasirScreen> {
               decoration: BoxDecoration(
                 color: subtleBg,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppTheme.primary.withValues(alpha: 0.3)),
+                border: Border.all(color: AppTheme.primary.withOpacity(0.3)),
               ),
               child: TextField(
                 controller: _tableNumberController,
@@ -421,37 +583,99 @@ class _KasirScreenState extends State<KasirScreen> {
                 decoration: InputDecoration(
                   hintText: 'Meja',
                   hintStyle: TextStyle(color: mutedColor, fontSize: 12),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
                   border: InputBorder.none,
                   isDense: true,
                 ),
               ),
             ),
-          const SizedBox(width: 8),
-          // Transaction history button
-          Stack(
-            children: [
-              IconButton(
-                onPressed: () => _showHistoryDrawer(cardColor, textColor, mutedColor, borderColor, subtleBg, isDark),
-                icon: const Icon(Icons.receipt_long, color: AppTheme.primary, size: 22),
-                tooltip: 'Riwayat Transaksi',
+
+          const SizedBox(width: 16),
+
+          // Profile Dropdown Menu
+          PopupMenuButton<String>(
+            color: cardColor,
+            offset: const Offset(0, 40),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: subtleBg,
+                borderRadius: BorderRadius.circular(20),
               ),
-              if (_shiftOrders.isNotEmpty)
-                Positioned(
-                  right: 4, top: 4,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(color: AppTheme.success, shape: BoxShape.circle),
-                    child: Text('${_shiftOrders.length}', style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700)),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 14,
+                    backgroundColor: AppTheme.primary.withOpacity(0.2),
+                    child: Text(
+                      auth.userName.isNotEmpty ? auth.userName[0].toUpperCase() : 'U',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppTheme.primary),
+                    ),
                   ),
+                  const SizedBox(width: 8),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(auth.userName, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: textColor)),
+                      Text(auth.userRole, style: TextStyle(fontSize: 10, color: mutedColor)),
+                    ],
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(Icons.arrow_drop_down, size: 16, color: mutedColor),
+                ],
+              ),
+            ),
+            itemBuilder: (ctx) => [
+              PopupMenuItem(
+                enabled: false,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(auth.userName, style: TextStyle(fontWeight: FontWeight.w700, color: textColor)),
+                    Text(auth.user?['email'] ?? '', style: TextStyle(fontSize: 11, color: mutedColor)),
+                    const SizedBox(height: 8),
+                    Divider(height: 1, color: borderColor),
+                  ],
                 ),
+              ),
+              PopupMenuItem(
+                value: 'profile',
+                child: Row(
+                  children: [
+                    Icon(Icons.person, size: 18, color: mutedColor),
+                    const SizedBox(width: 10),
+                    Text('Profil Saya', style: TextStyle(color: textColor, fontSize: 13)),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'history',
+                child: Row(
+                  children: [
+                    Icon(Icons.receipt_long, size: 18, color: mutedColor),
+                    const SizedBox(width: 10),
+                    Text('Riwayat Transaksi', style: TextStyle(color: textColor, fontSize: 13)),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'logout',
+                child: Row(
+                  children: [
+                    const Icon(Icons.logout, size: 18, color: AppTheme.danger),
+                    const SizedBox(width: 10),
+                    const Text('Akhiri Shift', style: TextStyle(color: AppTheme.danger, fontSize: 13, fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ),
             ],
-          ),
-          // End shift button
-          IconButton(
-            onPressed: () => Navigator.pushReplacementNamed(context, '/tutup-shift'),
-            icon: const Icon(Icons.logout, color: AppTheme.danger, size: 20),
-            tooltip: 'Akhiri Shift',
+            onSelected: (val) {
+              if (val == 'logout') Navigator.pushReplacementNamed(context, '/tutup-shift');
+              if (val == 'history') _showHistoryDrawer(cardColor, textColor, mutedColor, borderColor, subtleBg, isDark);
+              if (val == 'profile') Navigator.pushNamed(context, '/profile');
+            },
           ),
         ],
       ),
@@ -460,39 +684,52 @@ class _KasirScreenState extends State<KasirScreen> {
 
   Widget _buildCategoryTabs(Color cardColor, Color textColor, Color mutedColor, Color subtleBg, bool isDark) {
     return Container(
-      height: 48,
+      height: 56,
       color: cardColor,
       child: ListView(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         children: [
-          _categoryChip('Semua', null, textColor, mutedColor, subtleBg),
-          ..._categories.map((c) => _categoryChip(c['name'], c['id'], textColor, mutedColor, subtleBg)),
+          _categoryPill('Semua', null, Icons.grid_view, textColor, mutedColor, subtleBg),
+          ..._categories.map((c) {
+            IconData icon = Icons.label;
+            final n = c['name']?.toString().toLowerCase() ?? '';
+            if (n.contains('makan')) icon = Icons.restaurant;
+            else if (n.contains('minum')) icon = Icons.local_cafe;
+            else if (n.contains('snack') || n.contains('camilan')) icon = Icons.cookie;
+            return _categoryPill(c['name'], c['id'], icon, textColor, mutedColor, subtleBg);
+          }),
         ],
       ),
     );
   }
 
-  Widget _categoryChip(String name, String? id, Color textColor, Color mutedColor, Color subtleBg) {
+  Widget _categoryPill(String name, String? id, IconData icon, Color textColor, Color mutedColor, Color subtleBg) {
     final isSelected = _selectedCategoryId == id;
     return Padding(
-      padding: const EdgeInsets.only(right: 8, top: 8, bottom: 8),
+      padding: const EdgeInsets.only(right: 10),
       child: GestureDetector(
         onTap: () => setState(() => _selectedCategoryId = id),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 14),
           decoration: BoxDecoration(
             color: isSelected ? AppTheme.primary : subtleBg,
             borderRadius: BorderRadius.circular(20),
           ),
           alignment: Alignment.center,
-          child: Text(
-            name,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: isSelected ? Colors.white : mutedColor,
-            ),
+          child: Row(
+            children: [
+              Icon(icon, size: 16, color: isSelected ? Colors.white : mutedColor),
+              const SizedBox(width: 6),
+              Text(
+                name,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: isSelected ? Colors.white : textColor,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -553,22 +790,22 @@ class _KasirScreenState extends State<KasirScreen> {
       onTap: () => _addToCart(product),
       child: Container(
         decoration: BoxDecoration(
-          color: cardColor,
+          color: isDark ? AppTheme.surfaceDark : cardColor,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: borderColor),
+          border: Border.all(color: isDark ? Colors.transparent : borderColor),
           boxShadow: isDark ? null : [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2)),
+            BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2)),
           ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Product Image
+            // Product Image (Square-ish top)
             Expanded(
               child: Container(
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: AppTheme.primary.withValues(alpha: isDark ? 0.08 : 0.06),
+                  color: isDark ? AppTheme.cardDark : AppTheme.primary.withOpacity(0.06),
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
                 ),
                 child: product['imageUrl'] != null && product['imageUrl'].toString().isNotEmpty
@@ -577,7 +814,7 @@ class _KasirScreenState extends State<KasirScreen> {
                       child: Image.network(
                         '${ApiConfig.baseUrl.replaceAll('/api', '')}${product['imageUrl']}',
                         fit: BoxFit.cover, width: double.infinity,
-                        errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.fastfood, size: 36, color: AppTheme.primary)),
+                        errorBuilder: (_, _, _) => const Center(child: Icon(Icons.fastfood, size: 36, color: AppTheme.primary)),
                       ),
                     )
                   : const Center(child: Icon(Icons.fastfood, size: 36, color: AppTheme.primary)),
@@ -585,7 +822,7 @@ class _KasirScreenState extends State<KasirScreen> {
             ),
             // Info
             Padding(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -595,7 +832,7 @@ class _KasirScreenState extends State<KasirScreen> {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 13,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                       color: textColor,
                     ),
                   ),
@@ -603,16 +840,16 @@ class _KasirScreenState extends State<KasirScreen> {
                   Text(
                     'Rp ${_formatter.format(product['price'] ?? 0)}',
                     style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
                       color: AppTheme.primary,
                     ),
                   ),
                   if ((product['variants'] as List<dynamic>? ?? []).isNotEmpty) ...[
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 4),
                     Text(
                       '${(product['variants'] as List).length} variasi',
-                      style: TextStyle(fontSize: 10, color: AppTheme.primary.withValues(alpha: 0.7), fontWeight: FontWeight.w500),
+                      style: TextStyle(fontSize: 10, color: isDark ? Colors.white54 : AppTheme.textMutedLight, fontWeight: FontWeight.w500),
                     ),
                   ],
                 ],
@@ -626,6 +863,7 @@ class _KasirScreenState extends State<KasirScreen> {
 
   // ── Cart Panel (for wide layout) ──────────────────────────────
   Widget _buildCartPanel(Color cardColor, Color textColor, Color mutedColor, Color borderColor, Color subtleBg, bool isDark) {
+    final auth = context.watch<AuthProvider>();
     return Container(
       decoration: BoxDecoration(
         color: cardColor,
@@ -634,26 +872,45 @@ class _KasirScreenState extends State<KasirScreen> {
       child: Column(
         children: [
           // Cart header
-          Padding(
-            padding: const EdgeInsets.all(16),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            decoration: BoxDecoration(border: Border(bottom: BorderSide(color: borderColor))),
             child: Row(
               children: [
-                const Icon(Icons.shopping_cart, size: 20, color: AppTheme.primary),
-                const SizedBox(width: 8),
-                Text(
-                  'Keranjang',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: textColor),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'PESANAN SAAT INI',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: textColor, letterSpacing: 0.5),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '#POS-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)} • ${auth.userName}',
+                        style: TextStyle(fontSize: 12, color: mutedColor, fontWeight: FontWeight.w500),
+                      ),
+                    ],
+                  ),
                 ),
-                const Spacer(),
                 if (_cart.isNotEmpty)
-                  GestureDetector(
-                    onTap: _clearCart,
-                    child: const Text('Hapus Semua', style: TextStyle(fontSize: 12, color: AppTheme.danger)),
+                  IconButton(
+                    onPressed: _clearCart,
+                    icon: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppTheme.danger.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.delete_outline, size: 20, color: AppTheme.danger),
+                    ),
+                    tooltip: 'Kosongkan Keranjang',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
                   ),
               ],
             ),
           ),
-          Divider(height: 1, color: borderColor),
 
           // Cart items
           Expanded(
@@ -662,49 +919,76 @@ class _KasirScreenState extends State<KasirScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.shopping_bag_outlined, size: 48, color: mutedColor.withValues(alpha: 0.4)),
-                        const SizedBox(height: 8),
-                        Text('Keranjang kosong', style: TextStyle(color: mutedColor)),
+                        Icon(Icons.shopping_basket_outlined, size: 64, color: mutedColor.withOpacity(0.3)),
+                        const SizedBox(height: 16),
+                        Text('Belum ada pesanan', style: TextStyle(color: mutedColor, fontSize: 16, fontWeight: FontWeight.w600)),
+                        const SizedBox(height: 4),
+                        Text('Silakan pilih menu terlebih dahulu', style: TextStyle(color: mutedColor, fontSize: 13)),
                       ],
                     ),
                   )
-                : ListView.builder(
+                : ListView.separated(
+                    padding: const EdgeInsets.all(16),
                     itemCount: _cart.length,
-                    itemBuilder: (ctx, i) => _cartItem(i, textColor, mutedColor, subtleBg),
+                    separatorBuilder: (ctx, i) => Divider(height: 24, color: borderColor),
+                    itemBuilder: (ctx, i) => _cartItem(i, textColor, mutedColor, subtleBg, isDark),
                   ),
           ),
 
           // Total & Checkout
           if (_cart.isNotEmpty) ...[
-            Divider(height: 1, color: borderColor),
-            Padding(
-              padding: const EdgeInsets.all(16),
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: isDark ? AppTheme.surfaceDark : Colors.white,
+                border: Border(top: BorderSide(color: borderColor)),
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -4)),
+                ],
+              ),
               child: Column(
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Total', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: mutedColor)),
+                      Text('Subtotal', style: TextStyle(fontSize: 14, color: mutedColor)),
+                      Text('Rp ${_formatter.format(_subtotal)}', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textColor)),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Pajak (10%)', style: TextStyle(fontSize: 14, color: mutedColor)),
+                      Text('Rp ${_formatter.format(_taxAmount)}', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textColor)),
+                    ],
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Divider(height: 1),
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Total Bayar', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: textColor)),
                       Text(
                         'Rp ${_formatter.format(_totalAmount)}',
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: textColor),
+                        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppTheme.primary),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
                   SizedBox(
                     width: double.infinity,
-                    height: 48,
+                    height: 52,
                     child: ElevatedButton(
                       onPressed: () => _showPaymentDialog(),
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.payment, size: 20),
-                          SizedBox(width: 8),
-                          Text('Bayar'),
-                        ],
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primary,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        elevation: 0,
                       ),
+                      child: const Text('BAYAR SEKARANG', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, letterSpacing: 1)),
                     ),
                   ),
                 ],
@@ -716,111 +1000,147 @@ class _KasirScreenState extends State<KasirScreen> {
     );
   }
 
-  Widget _cartItem(int idx, Color textColor, Color mutedColor, Color subtleBg) {
+  Widget _cartItem(int idx, Color textColor, Color mutedColor, Color subtleBg, bool isDark) {
     final item = _cart[idx];
     final hasNote = (item['notes'] as String?)?.isNotEmpty == true;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item['name'],
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textColor),
-                    ),
-                    if (item['variantName'] != null)
-                      Text(
-                        item['variantName'],
-                        style: TextStyle(fontSize: 11, color: AppTheme.primary, fontWeight: FontWeight.w500),
-                      ),
-                    Text(
-                      'Rp ${_formatter.format(item['price'])}',
-                      style: TextStyle(fontSize: 12, color: mutedColor),
-                    ),
-                  ],
-                ),
-              ),
-              // Note button
-              GestureDetector(
-                onTap: () => _showNoteDialog(idx, textColor, subtleBg),
-                child: Container(
-                  width: 30, height: 30,
-                  margin: const EdgeInsets.only(right: 6),
-                  decoration: BoxDecoration(
-                    color: hasNote ? AppTheme.warning.withValues(alpha: 0.15) : subtleBg,
-                    borderRadius: BorderRadius.circular(7),
-                  ),
-                  child: Icon(
-                    hasNote ? Icons.edit_note : Icons.note_add_outlined,
-                    size: 16,
-                    color: hasNote ? AppTheme.warning : mutedColor,
-                  ),
-                ),
-              ),
-              // Quantity controls
-              Container(
-                decoration: BoxDecoration(
-                  color: subtleBg,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    IconButton(
-                      onPressed: () => _updateQuantity(idx, -1),
-                      icon: Icon(Icons.remove, size: 16, color: mutedColor),
-                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                      padding: EdgeInsets.zero,
-                    ),
-                    SizedBox(
-                      width: 28,
-                      child: Text(
-                        '${item['quantity']}',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: textColor),
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () => _updateQuantity(idx, 1),
-                      icon: const Icon(Icons.add, size: 16, color: AppTheme.primary),
-                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                      padding: EdgeInsets.zero,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Rp ${_formatter.format((item['price'] as int) * (item['quantity'] as int))}',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: textColor),
-              ),
-            ],
+    final imgUrl = item['imageUrl'] as String?;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Thumbnail
+        Container(
+          width: 56,
+          height: 56,
+          decoration: BoxDecoration(
+            color: isDark ? AppTheme.cardDark : AppTheme.primary.withOpacity(0.06),
+            borderRadius: BorderRadius.circular(10),
           ),
-          // Show note if exists
-          if (hasNote)
-            Padding(
-              padding: const EdgeInsets.only(top: 4, left: 2),
-              child: Row(
+          child: imgUrl != null && imgUrl.isNotEmpty
+              ? ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Image.network(
+                    '${ApiConfig.baseUrl.replaceAll('/api', '')}$imgUrl',
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => const Icon(Icons.fastfood, color: AppTheme.primary, size: 24),
+                  ),
+                )
+              : const Icon(Icons.fastfood, color: AppTheme.primary, size: 24),
+        ),
+        const SizedBox(width: 12),
+        // Details
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(item['name'], style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: textColor)),
+              const SizedBox(height: 2),
+              Text('Rp ${_formatter.format(item['price'])}', style: TextStyle(fontSize: 13, color: AppTheme.primary, fontWeight: FontWeight.w600)),
+              
+              if (item['variantName'] != null) ...[
+                const SizedBox(height: 6),
+                GestureDetector(
+                  onTap: () {
+                    // Try to load product to show variants
+                    final prodId = item['productId'];
+                    final p = _products.firstWhere((p) => p['id'] == prodId, orElse: () => null);
+                    if (p != null) {
+                      final variants = p['variants'] as List<dynamic>? ?? [];
+                      if (variants.isNotEmpty) {
+                        _showChangeVariantSheet(idx, p, variants);
+                      }
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: subtleBg,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: AppTheme.primary.withOpacity(0.2)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(item['variantName'], style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primary)),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.edit, size: 10, color: AppTheme.primary),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+              
+              const SizedBox(height: 8),
+              
+              // Note and quantity
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Icon(Icons.edit_note, size: 13, color: AppTheme.warning),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      item['notes'],
-                      style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: AppTheme.warning),
-                      maxLines: 1, overflow: TextOverflow.ellipsis,
+                  GestureDetector(
+                    onTap: () => _showNoteDialog(idx, textColor, subtleBg),
+                    child: Row(
+                      children: [
+                        Icon(hasNote ? Icons.edit_note : Icons.add_comment_outlined, size: 16, color: hasNote ? AppTheme.warning : mutedColor),
+                        const SizedBox(width: 4),
+                        Text(hasNote ? 'Edit catatan' : 'Tambah catatan', style: TextStyle(fontSize: 12, color: hasNote ? AppTheme.warning : mutedColor)),
+                      ],
+                    ),
+                  ),
+                  
+                  // Quantity
+                  Container(
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: isDark ? AppTheme.cardDark : Colors.white,
+                      border: Border.all(color: isDark ? const Color(0xFF374151) : const Color(0xFFE2E8F0)),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          onPressed: () => _updateQuantity(idx, -1),
+                          icon: Icon(item['quantity'] > 1 ? Icons.remove : Icons.delete_outline, size: 14, color: item['quantity'] > 1 ? textColor : AppTheme.danger),
+                          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                          padding: EdgeInsets.zero,
+                        ),
+                        Container(
+                          width: 24,
+                          alignment: Alignment.center,
+                          child: Text('${item['quantity']}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: textColor)),
+                        ),
+                        IconButton(
+                          onPressed: () => _updateQuantity(idx, 1),
+                          icon: const Icon(Icons.add, size: 14, color: AppTheme.primary),
+                          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                          padding: EdgeInsets.zero,
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
-            ),
-        ],
-      ),
+              
+              if (hasNote) ...[
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppTheme.warning.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: AppTheme.warning.withOpacity(0.2)),
+                  ),
+                  width: double.infinity,
+                  child: Text(
+                    '"${item['notes']}"',
+                    style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: AppTheme.warning),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -831,7 +1151,7 @@ class _KasirScreenState extends State<KasirScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: isDark ? const Color(0xFF111827) : Colors.white,
+        backgroundColor: isDark ? AppTheme.cardDark : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         title: Row(
           children: [
@@ -979,7 +1299,7 @@ class _KasirScreenState extends State<KasirScreen> {
           return Container(
             height: MediaQuery.of(context).size.height * 0.85,
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF0D1117) : Colors.white,
+              color: isDark ? AppTheme.cardDark : Colors.white,
               borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
             ),
             child: Column(
@@ -1051,7 +1371,7 @@ class _KasirScreenState extends State<KasirScreen> {
                       : ListView.separated(
                           padding: const EdgeInsets.all(0),
                           itemCount: _shiftOrders.length,
-                          separatorBuilder: (_, __) => Divider(height: 1, color: borderColor),
+                          separatorBuilder: (_, _) => Divider(height: 1, color: borderColor),
                           itemBuilder: (_, i) {
                             final order = _shiftOrders[i];
                             final createdAt = order['createdAt']?.toString() ?? '';
@@ -1152,7 +1472,7 @@ class _KasirScreenState extends State<KasirScreen> {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF111827) : const Color(0xFFF8FAFC),
+          color: isDark ? AppTheme.cardDark : const Color(0xFFF8FAFC),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: color.withValues(alpha: 0.2)),
         ),
@@ -1193,7 +1513,7 @@ class _KasirScreenState extends State<KasirScreen> {
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
-          backgroundColor: isDark ? const Color(0xFF111827) : Colors.white,
+          backgroundColor: isDark ? AppTheme.cardDark : Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Row(
             children: [
