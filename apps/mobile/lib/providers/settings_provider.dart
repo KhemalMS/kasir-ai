@@ -156,7 +156,7 @@ class SettingsProvider extends ChangeNotifier {
     // Nav
     'dashboard': 'Dashboard',
     'products': 'Produk',
-    'staff': 'Staff',
+    'staff': 'Pegawai',
     'reports': 'Laporan',
     'settings': 'Pengaturan',
 
@@ -331,7 +331,7 @@ class SettingsProvider extends ChangeNotifier {
     // Nav
     'dashboard': 'Dashboard',
     'products': 'Products',
-    'staff': 'Staff',
+    'staff': 'Pegawai',
     'reports': 'Reports',
     'settings': 'Settings',
 

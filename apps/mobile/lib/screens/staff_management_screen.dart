@@ -73,7 +73,7 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Manajemen Staff',
+              'Manajemen Pegawai',
               style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
@@ -93,7 +93,7 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                 );
               },
               icon: const Icon(Icons.add, color: Colors.white, size: 18),
-              label: const Text('Tambah Staff'),
+              label: const Text('Tambah Pegawai Baru'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primary,
                 minimumSize: const Size(140, 48), // Override double.infinity from theme
@@ -213,7 +213,7 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                 final staffList = provider.staffList;
                 if (staffList.isEmpty) {
                   return Center(
-                    child: Text('Tidak ada staf ditemukan', style: TextStyle(color: Colors.grey.shade500)),
+                    child: Text('Tidak ada pegawai ditemukan', style: TextStyle(color: Colors.grey.shade500)),
                   );
                 }
 
@@ -342,15 +342,18 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
             flex: 1,
             child: Align(
               alignment: Alignment.centerRight,
-              child: IconButton(
-                icon: const Icon(Icons.more_horiz, color: Colors.white54),
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    barrierColor: Colors.black.withOpacity(0.5),
-                    builder: (context) => StaffDetailScreen(staffId: staff['id']),
-                  );
-                },
+              child: Tooltip(
+                message: 'Detail Pegawai',
+                child: IconButton(
+                  icon: const Icon(Icons.more_horiz, color: Colors.white54),
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      barrierColor: Colors.black.withOpacity(0.5),
+                      builder: (context) => StaffDetailScreen(staffId: staff['id']),
+                    );
+                  },
+                ),
               ),
             ),
           ),
