@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { AppError } from '../middleware/errorHandler.js';
 import { expensesService } from '../services/expenses.service.js';
 
 const router = Router();
@@ -16,7 +17,7 @@ router.get('/', async (req: Request, res: Response) => {
 
 router.get('/:id', async (req: Request<{ id: string }>, res: Response) => {
     const expense = await expensesService.findById(req.params.id);
-    if (!expense) { res.status(404).json({ error: 'Expense not found' }); return; }
+    if (!expense) { throw AppError.notFound(); }
     res.json(expense);
 });
 
@@ -27,7 +28,7 @@ router.post('/', async (req: Request, res: Response) => {
 
 router.put('/:id', async (req: Request<{ id: string }>, res: Response) => {
     const expense = await expensesService.update(req.params.id, req.body);
-    if (!expense) { res.status(404).json({ error: 'Expense not found' }); return; }
+    if (!expense) { throw AppError.notFound(); }
     res.json(expense);
 });
 
@@ -38,7 +39,7 @@ router.put('/:id/approve', async (req: Request<{ id: string }>, res: Response) =
 
 router.delete('/:id', async (req: Request<{ id: string }>, res: Response) => {
     const expense = await expensesService.delete(req.params.id);
-    if (!expense) { res.status(404).json({ error: 'Expense not found' }); return; }
+    if (!expense) { throw AppError.notFound(); }
     res.json({ message: 'Expense deleted' });
 });
 

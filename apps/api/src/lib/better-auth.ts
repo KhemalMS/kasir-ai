@@ -54,8 +54,9 @@ export const auth = betterAuth({
     },
     trustedOrigins,
     advanced: {
-        // Required for Android native HTTP client (no Origin header)
-        // Android apps don't send Origin headers like browsers do
+        // WARNING: Only disable for mobile apps that don't send Origin headers.
+        // Browser web clients MUST use cookie-based auth with proper CORS.
+        // TODO: Make this conditional based on User-Agent in future Phase 2.
         disableCSRFCheck: true,
     },
     plugins: [

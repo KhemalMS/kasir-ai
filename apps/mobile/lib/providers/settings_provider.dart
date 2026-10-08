@@ -10,6 +10,9 @@ class SettingsProvider extends ChangeNotifier {
   String storeAddress = '';
   String storePhone = '';
 
+  // ── Target Penjualan ──
+  double monthlySalesTarget = 50000000;
+
   // ── Pengaturan Printer ──
   String printerName = '';
   String printerAddress = ''; // MAC address BT printer
@@ -55,6 +58,9 @@ class SettingsProvider extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     _language = prefs.getString('app_language') ?? 'Indonesia';
     _theme = prefs.getString('app_theme') ?? 'Gelap';
+    
+    // Target Penjualan
+    monthlySalesTarget = prefs.getDouble('monthly_sales_target') ?? 50000000;
 
     // Printer
     printerName = prefs.getString('printer_name') ?? '';
@@ -103,6 +109,13 @@ class SettingsProvider extends ChangeNotifier {
     _theme = themeVal;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('app_theme', themeVal);
+    notifyListeners();
+  }
+
+  Future<void> setSalesTarget(double target) async {
+    monthlySalesTarget = target;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('monthly_sales_target', target);
     notifyListeners();
   }
 

@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { AppError } from '../middleware/errorHandler.js';
 import { settingsService } from '../services/settings.service.js';
 
 const router = Router();
@@ -43,13 +44,13 @@ router.post('/payment-methods', async (req: Request, res: Response) => {
 
 router.put('/payment-methods/:id', async (req: Request<{ id: string }>, res: Response) => {
     const method = await settingsService.updatePaymentMethod(req.params.id, req.body);
-    if (!method) { res.status(404).json({ error: 'Payment method not found' }); return; }
+    if (!method) { throw AppError.notFound(); }
     res.json(method);
 });
 
 router.delete('/payment-methods/:id', async (req: Request<{ id: string }>, res: Response) => {
     const method = await settingsService.deletePaymentMethod(req.params.id);
-    if (!method) { res.status(404).json({ error: 'Payment method not found' }); return; }
+    if (!method) { throw AppError.notFound(); }
     res.json({ message: 'Payment method deleted' });
 });
 
@@ -66,13 +67,13 @@ router.post('/taxes', async (req: Request, res: Response) => {
 
 router.put('/taxes/:id', async (req: Request<{ id: string }>, res: Response) => {
     const tax = await settingsService.updateTax(req.params.id, req.body);
-    if (!tax) { res.status(404).json({ error: 'Tax not found' }); return; }
+    if (!tax) { throw AppError.notFound(); }
     res.json(tax);
 });
 
 router.delete('/taxes/:id', async (req: Request<{ id: string }>, res: Response) => {
     const tax = await settingsService.deleteTax(req.params.id);
-    if (!tax) { res.status(404).json({ error: 'Tax not found' }); return; }
+    if (!tax) { throw AppError.notFound(); }
     res.json({ message: 'Tax deleted' });
 });
 

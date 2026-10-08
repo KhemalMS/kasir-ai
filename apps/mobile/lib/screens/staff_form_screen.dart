@@ -3,6 +3,10 @@ import 'dart:convert';
 import 'dart:ui';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
+
+import '../models/app_error.dart';
+import '../services/error_notifier.dart';
+import '../services/error_mapper.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../config/app_theme.dart';
@@ -42,6 +46,7 @@ class _StaffFormScreenState extends State<StaffFormScreen> {
   final _notesCtrl = TextEditingController();
 
   // State vars
+  AppError? _appError;
   String? _gender = 'Laki-laki';
   String? _role;
   String? _branchId;
@@ -143,13 +148,14 @@ class _StaffFormScreenState extends State<StaffFormScreen> {
   }
 
   Future<void> _submit() async {
+    setState(() => _appError = null);
     if (!_formKey.currentState!.validate()) return;
     if (_role == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pilih Peran')));
+      ErrorNotifier.show(ErrorMapper.from(Exception('Pilih Peran'), null, module: 'staff', action: 'submitForm'));
       return;
     }
     if (_branchId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pilih Cabang')));
+      ErrorNotifier.show(ErrorMapper.from(Exception('Pilih Cabang'), null, module: 'staff', action: 'submitForm'));
       return;
     }
 
@@ -183,19 +189,21 @@ class _StaffFormScreenState extends State<StaffFormScreen> {
           if (res['tempPassword'] != null) {
             _showPasswordDialog(res['tempPassword']);
           } else {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pegawai berhasil ditambahkan')));
+            ErrorNotifier.showSuccess('Pegawai berhasil ditambahkan');
           }
         }
       } else {
         await provider.updateStaff(widget.staff!['id'], data);
         if (mounted) {
           Navigator.pop(context);
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pegawai berhasil diperbarui')));
+          ErrorNotifier.showSuccess('Pegawai berhasil diperbarui');
         }
       }
-    } catch (e) {
+    } catch (e, stack) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()), backgroundColor: AppTheme.danger));
+        final err = ErrorMapper.from(e, stack, module: 'staff', action: 'submitForm');
+        setState(() => _appError = err);
+        ErrorNotifier.show(err);
       }
     }
   }
@@ -300,18 +308,15 @@ class _StaffFormScreenState extends State<StaffFormScreen> {
         if (response['success'] == true && response['imageUrl'] != null) {
           if (mounted) setState(() => _imageUrl = response['imageUrl'] as String);
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('✅ Avatar berhasil diunggah!')),
-            );
+            ErrorNotifier.showSuccess('✅ Avatar berhasil diunggah!');
           }
         } else {
           throw Exception('Upload gagal: ${response['error'] ?? 'Unknown error'}');
         }
-      } catch (e) {
+      } catch (e, stack) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error upload: $e'), backgroundColor: Colors.red),
-          );
+          final err = ErrorMapper.from(e, stack, module: 'staff', action: 'uploadAvatar');
+          ErrorNotifier.show(err);
         }
       } finally {
         uploadInput.remove();
@@ -342,18 +347,15 @@ class _StaffFormScreenState extends State<StaffFormScreen> {
       if (response['success'] == true && response['imageUrl'] != null) {
         if (mounted) setState(() => _imageUrl = response['imageUrl'] as String);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Avatar berhasil diunggah')),
-          );
+          ErrorNotifier.showSuccess('Avatar berhasil diunggah');
         }
       } else {
         throw Exception('Upload gagal: ${response['error']}');
       }
-    } catch (e) {
+    } catch (e, stack) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error upload: $e'), backgroundColor: Colors.red),
-        );
+        final err = ErrorMapper.from(e, stack, module: 'staff', action: 'uploadAvatarNative');
+        ErrorNotifier.show(err);
       }
     } finally {
       if (mounted) setState(() => _isUploadingAvatar = false);
@@ -362,9 +364,10 @@ class _StaffFormScreenState extends State<StaffFormScreen> {
 
   // --- UI Builders ---
 
-  InputDecoration _customInputDeco(String hint) {
+  InputDecoration _customInputDeco(String hint, {String? errorText}) {
     return InputDecoration(
       hintText: hint,
+      errorText: errorText,
       hintStyle: const TextStyle(color: Colors.white54, fontSize: 14),
       filled: true,
       fillColor: Colors.white.withOpacity(0.05),
@@ -664,7 +667,7 @@ class _StaffFormScreenState extends State<StaffFormScreen> {
         TextFormField(
           controller: _nameCtrl,
           style: const TextStyle(color: Colors.white, fontSize: 14),
-          decoration: _customInputDeco('Nama Lengkap *'),
+          decoration: _customInputDeco('Nama Lengkap *', errorText: _appError?.fieldErrors?['name']),
           validator: (v) => v!.isEmpty ? 'Wajib diisi' : null,
         ),
         const SizedBox(height: 12),
@@ -672,7 +675,7 @@ class _StaffFormScreenState extends State<StaffFormScreen> {
           controller: _emailCtrl,
           style: const TextStyle(color: Colors.white, fontSize: 14),
           enabled: widget.staff == null,
-          decoration: _customInputDeco('Email *'),
+          decoration: _customInputDeco('Email *', errorText: _appError?.fieldErrors?['email']),
           keyboardType: TextInputType.emailAddress,
           validator: (v) {
             if (v!.isEmpty) return 'Wajib diisi';
@@ -684,7 +687,7 @@ class _StaffFormScreenState extends State<StaffFormScreen> {
         TextFormField(
           controller: _phoneCtrl,
           style: const TextStyle(color: Colors.white, fontSize: 14),
-          decoration: _customInputDeco('No. HP / WhatsApp *'),
+          decoration: _customInputDeco('No. HP / WhatsApp *', errorText: _appError?.fieldErrors?['phone']),
           keyboardType: TextInputType.phone,
           validator: (v) => v!.isEmpty ? 'Wajib diisi' : null,
         ),
@@ -693,7 +696,7 @@ class _StaffFormScreenState extends State<StaffFormScreen> {
         TextFormField(
           controller: _addressCtrl,
           style: const TextStyle(color: Colors.white, fontSize: 14),
-          decoration: _customInputDeco('Alamat Lengkap'),
+          decoration: _customInputDeco('Alamat Lengkap', errorText: _appError?.fieldErrors?['address']),
           maxLines: 2,
         ),
         const SizedBox(height: 12),
@@ -745,13 +748,13 @@ class _StaffFormScreenState extends State<StaffFormScreen> {
         TextFormField(
           controller: _emergencyContactNameCtrl,
           style: const TextStyle(color: Colors.white, fontSize: 14),
-          decoration: _customInputDeco('Nama Kontak Darurat'),
+          decoration: _customInputDeco('Nama Kontak Darurat', errorText: _appError?.fieldErrors?['emergencyContactName']),
         ),
         const SizedBox(height: 12),
         TextFormField(
           controller: _emergencyContactPhoneCtrl,
           style: const TextStyle(color: Colors.white, fontSize: 14),
-          decoration: _customInputDeco('No. HP Kontak Darurat'),
+          decoration: _customInputDeco('No. HP Kontak Darurat', errorText: _appError?.fieldErrors?['emergencyContactPhone']),
           keyboardType: TextInputType.phone,
         ),
       ],
@@ -772,7 +775,7 @@ class _StaffFormScreenState extends State<StaffFormScreen> {
           value: _role,
           dropdownColor: AppTheme.surfaceDark,
           style: const TextStyle(color: Colors.white, fontSize: 14),
-          decoration: _customInputDeco('Peran *'),
+          decoration: _customInputDeco('Peran *', errorText: _appError?.fieldErrors?['role']),
           items: ['Admin', 'Kasir', 'Barista', 'Chef', 'Pelayan', 'Manajer']
               .map((r) => DropdownMenuItem(value: r, child: Text(r))).toList(),
           onChanged: (v) => setState(() => _role = v),
@@ -784,7 +787,7 @@ class _StaffFormScreenState extends State<StaffFormScreen> {
           value: _branchId,
           dropdownColor: AppTheme.surfaceDark,
           style: const TextStyle(color: Colors.white, fontSize: 14),
-          decoration: _customInputDeco('Cabang *'),
+          decoration: _customInputDeco('Cabang *', errorText: _appError?.fieldErrors?['branchId']),
           items: _branches.map((b) => DropdownMenuItem(
             value: b['id'] as String,
             child: Text(b['name'] ?? ''),
@@ -815,7 +818,7 @@ class _StaffFormScreenState extends State<StaffFormScreen> {
         TextFormField(
           controller: _notesCtrl,
           style: const TextStyle(color: Colors.white, fontSize: 14),
-          decoration: _customInputDeco('Catatan Internal (Opsional)'),
+          decoration: _customInputDeco('Catatan Internal (Opsional)', errorText: _appError?.fieldErrors?['notes']),
           maxLines: 2,
         ),
         
@@ -828,20 +831,20 @@ class _StaffFormScreenState extends State<StaffFormScreen> {
         TextFormField(
           controller: _bankNameCtrl,
           style: const TextStyle(color: Colors.white, fontSize: 14),
-          decoration: _customInputDeco('Nama Bank (Misal: BCA, BNI)'),
+          decoration: _customInputDeco('Nama Bank (Misal: BCA, BNI)', errorText: _appError?.fieldErrors?['bankName']),
         ),
         const SizedBox(height: 12),
         TextFormField(
           controller: _bankAccountNumberCtrl,
           style: const TextStyle(color: Colors.white, fontSize: 14),
-          decoration: _customInputDeco('Nomor Rekening'),
+          decoration: _customInputDeco('Nomor Rekening', errorText: _appError?.fieldErrors?['bankAccountNumber']),
           keyboardType: TextInputType.number,
         ),
         const SizedBox(height: 12),
         TextFormField(
           controller: _bankAccountNameCtrl,
           style: const TextStyle(color: Colors.white, fontSize: 14),
-          decoration: _customInputDeco('Nama Pemilik Rekening'),
+          decoration: _customInputDeco('Nama Pemilik Rekening', errorText: _appError?.fieldErrors?['bankAccountName']),
         ),
       ],
     );

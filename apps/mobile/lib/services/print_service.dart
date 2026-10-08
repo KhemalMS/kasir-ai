@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../utils/web_print.dart'
     if (dart.library.io) '../utils/web_print_stub.dart';
+import 'error_notifier.dart';
 
 // ─────────────────────────────────────────────
 //  PrintService
@@ -224,6 +225,6 @@ $kitchenItems
 
   static void _showSnack(BuildContext context, String msg) {
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    ErrorNotifier.showInfo(msg);
   }
 }

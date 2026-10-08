@@ -14,6 +14,12 @@ import { orderItems } from './orderItems';
 import { payments } from './payments';
 import { expenses } from './expenses';
 import { stockAdjustments } from './stockAdjustments';
+import { attendances } from './attendances';
+import { inventoryBatches } from './inventoryBatches';
+import { customers } from './customers';
+import { activityLogs } from './activityLogs';
+import { suppliers, purchaseOrders, supplierReturns } from './purchasing';
+
 
 // ── Branch Relations ───────────────────────────────────────────
 export const branchesRelations = relations(branches, ({ many }) => ({
@@ -74,6 +80,16 @@ export const inventoryRelations = relations(inventory, ({ one, many }) => ({
         references: [branches.id],
     }),
     productIngredients: many(productIngredients),
+    batches: many(inventoryBatches),
+    stockAdjustments: many(stockAdjustments),
+}));
+
+// ── Inventory Batch Relations ──────────────────────────────────
+export const inventoryBatchesRelations = relations(inventoryBatches, ({ one }) => ({
+    inventoryItem: one(inventory, {
+        fields: [inventoryBatches.inventoryId],
+        references: [inventory.id],
+    }),
 }));
 
 // ── Product Ingredient Relations ───────────────────────────────
@@ -98,6 +114,8 @@ export const staffRelations = relations(staff, ({ one, many }) => ({
     shifts: many(shifts),
     expenses: many(expenses),
     salaries: many(staffSalaries),
+    attendances: many(attendances),
+    activityLogs: many(activityLogs),
 }));
 
 // ── Staff Salaries Relations ────────────────────────────────────
@@ -107,6 +125,15 @@ export const staffSalariesRelations = relations(staffSalaries, ({ one }) => ({
         references: [staff.id],
     }),
 }));
+
+// ── Attendance Relations ───────────────────────────────────────
+export const attendancesRelations = relations(attendances, ({ one }) => ({
+    staff: one(staff, {
+        fields: [attendances.staffId],
+        references: [staff.id],
+    }),
+}));
+
 
 // ── Shift Relations ────────────────────────────────────────────
 export const shiftsRelations = relations(shifts, ({ one, many }) => ({
@@ -135,6 +162,10 @@ export const ordersRelations = relations(orders, ({ one, many }) => ({
     shift: one(shifts, {
         fields: [orders.shiftId],
         references: [shifts.id],
+    }),
+    customer: one(customers, {
+        fields: [orders.customerId],
+        references: [customers.id],
     }),
     items: many(orderItems),
     payments: many(payments),
@@ -189,5 +220,53 @@ export const stockAdjustmentsRelations = relations(stockAdjustments, ({ one }) =
     staff: one(staff, {
         fields: [stockAdjustments.staffId],
         references: [staff.id],
+    }),
+}));
+
+// ── Customer Relations ─────────────────────────────────────────
+export const customersRelations = relations(customers, ({ many }) => ({
+    orders: many(orders),
+}));
+
+// ── Activity Log Relations ─────────────────────────────────────
+export const activityLogsRelations = relations(activityLogs, ({ one }) => ({
+    staff: one(staff, {
+        fields: [activityLogs.staffId],
+        references: [staff.id],
+    }),
+}));
+
+// ── Supplier Relations ─────────────────────────────────────────
+export const suppliersRelations = relations(suppliers, ({ many }) => ({
+    purchaseOrders: many(purchaseOrders),
+    supplierReturns: many(supplierReturns),
+}));
+
+// ── Purchase Order Relations ───────────────────────────────────
+export const purchaseOrdersRelations = relations(purchaseOrders, ({ one, many }) => ({
+    supplier: one(suppliers, {
+        fields: [purchaseOrders.supplierId],
+        references: [suppliers.id],
+    }),
+    branch: one(branches, {
+        fields: [purchaseOrders.branchId],
+        references: [branches.id],
+    }),
+    returns: many(supplierReturns),
+}));
+
+// ── Supplier Return Relations ──────────────────────────────────
+export const supplierReturnsRelations = relations(supplierReturns, ({ one }) => ({
+    supplier: one(suppliers, {
+        fields: [supplierReturns.supplierId],
+        references: [suppliers.id],
+    }),
+    branch: one(branches, {
+        fields: [supplierReturns.branchId],
+        references: [branches.id],
+    }),
+    purchaseOrder: one(purchaseOrders, {
+        fields: [supplierReturns.poId],
+        references: [purchaseOrders.id],
     }),
 }));

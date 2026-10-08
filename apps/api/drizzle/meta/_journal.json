@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1781831698393,
+      "tag": "0000_add_attendances",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1782272359916,
+      "tag": "0001_fine_sentinels",
+      "breakpoints": true
+    }
+  ]
+}

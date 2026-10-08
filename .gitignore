@@ -42,3 +42,9 @@ apps/api/uploads/*
 # Misc
 .cache/
 *.tgz
+
+# Local scratch & agent work (not for repo)
+scratch/
+.agents/
+build_*_log.txt
+start_local.bat

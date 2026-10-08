@@ -1,4 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import { AppError } from '../middleware/errorHandler.js';
 import { shiftsService } from '../services/shifts.service.js';
 
 const router = Router();
@@ -16,7 +17,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 router.get('/current', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const staffId = req.query.staffId as string;
-        if (!staffId) { res.status(400).json({ error: 'staffId is required' }); return; }
+        if (!staffId) { throw AppError.validation('Data tidak valid'); }
         const shift = await shiftsService.findCurrent(staffId);
         res.json(shift);
     } catch (e) { next(e); }
@@ -39,7 +40,7 @@ router.post('/:id/close', async (req: Request<{ id: string }>, res: Response, ne
 router.get('/:id/summary', async (req: Request<{ id: string }>, res: Response, next: NextFunction) => {
     try {
         const summary = await shiftsService.getSummary(req.params.id);
-        if (!summary) { res.status(404).json({ error: 'Shift not found' }); return; }
+        if (!summary) { throw AppError.notFound(); }
         res.json(summary);
     } catch (e) { next(e); }
 });

@@ -1,7 +1,8 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, Request, Response } from 'express';
+import { AppError, asyncHandler } from '../middleware/errorHandler.js';
 import { z } from 'zod';
 import { ordersService } from '../services/orders.service.js';
-import { validateBody } from '../middleware/validate.middleware.js';
+import { validateBody, validateQuery } from '../middleware/validate.middleware.js';
 
 const router = Router();
 
@@ -35,64 +36,55 @@ const updateStatusSchema = z.object({
     status: z.enum(['pending', 'preparing', 'ready', 'completed', 'cancelled']),
 });
 
-router.get('/', async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const orders = await ordersService.findAll({
-            branchId: req.query.branchId as string,
-            status: req.query.status as string,
-            shiftId: req.query.shiftId as string,
-            startDate: req.query.startDate ? new Date(req.query.startDate as string) : undefined,
-            endDate: req.query.endDate ? new Date(req.query.endDate as string) : undefined,
-        });
-        res.json(orders);
-    } catch (e) { next(e); }
+const listQuerySchema = z.object({
+    branchId: z.string().optional(),
+    status: z.string().optional(),
+    shiftId: z.string().optional(),
+    startDate: z.string().datetime().optional(),
+    endDate: z.string().datetime().optional(),
+    limit: z.coerce.number().int().min(1).max(100).default(50),
+    offset: z.coerce.number().int().min(0).default(0),
 });
 
-router.get('/saved', async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const shiftId = req.query.shiftId as string;
-        if (!shiftId) { res.status(400).json({ error: 'shiftId is required' }); return; }
-        const orders = await ordersService.getSavedOrders(shiftId);
-        res.json(orders);
-    } catch (e) { next(e); }
-});
+router.get('/', validateQuery(listQuerySchema), asyncHandler(async (req: Request, res: Response) => {
+    const orders = await ordersService.findAll({
+        branchId: req.query.branchId as string,
+        status: req.query.status as string,
+        shiftId: req.query.shiftId as string,
+        startDate: req.query.startDate ? new Date(req.query.startDate as string) : undefined,
+        endDate: req.query.endDate ? new Date(req.query.endDate as string) : undefined,
+        limit: req.query.limit as number | undefined,
+        offset: req.query.offset as number | undefined,
+    });
+    res.json(orders);
+}));
 
-router.get('/:id', async (req: Request<{ id: string }>, res: Response, next: NextFunction) => {
-    try {
-        const order = await ordersService.findById(req.params.id);
-        if (!order) { res.status(404).json({ error: 'Order not found' }); return; }
-        res.json(order);
-    } catch (e) { next(e); }
-});
+router.get('/saved', asyncHandler(async (req: Request, res: Response) => {
+    const shiftId = req.query.shiftId as string;
+    if (!shiftId) { throw AppError.validation('Shift ID diperlukan'); }
+    const orders = await ordersService.getSavedOrders(shiftId);
+    res.json(orders);
+}));
 
-router.post('/', validateBody(createOrderSchema), async (req: Request, res: Response) => {
-    try {
-        const order = await ordersService.create(req.body);
-        res.status(201).json(order);
-    } catch (err: any) {
-        console.error('[Orders] Create error:', err);
-        res.status(500).json({ error: err.message || 'Failed to create order' });
-    }
-});
+router.get('/:id', asyncHandler(async (req: Request<{ id: string }>, res: Response) => {
+    const order = await ordersService.findById(req.params.id);
+    if (!order) { throw AppError.notFound('Order tidak ditemukan'); }
+    res.json(order);
+}));
 
-router.put('/:id/status', validateBody(updateStatusSchema), async (req: Request<{ id: string }>, res: Response, next: NextFunction) => {
-    try {
-        const order = await ordersService.updateStatus(req.params.id, req.body.status);
-        res.json(order);
-    } catch (e) { next(e); }
-});
+router.post('/', validateBody(createOrderSchema), asyncHandler(async (req: Request, res: Response) => {
+    const order = await ordersService.create(req.body);
+    res.status(201).json(order);
+}));
 
-router.delete('/:id', async (req: Request<{ id: string }>, res: Response) => {
-    try {
-        const order = await ordersService.delete(req.params.id);
-        res.json({ message: 'Order deleted', order });
-    } catch (err: any) {
-        if (err.statusCode === 404) {
-            res.status(404).json({ error: 'Order not found' });
-        } else {
-            res.status(500).json({ error: err.message || 'Failed to delete order' });
-        }
-    }
-});
+router.put('/:id/status', validateBody(updateStatusSchema), asyncHandler(async (req: Request<{ id: string }>, res: Response) => {
+    const order = await ordersService.updateStatus(req.params.id, req.body.status);
+    res.json(order);
+}));
+
+router.delete('/:id', asyncHandler(async (req: Request<{ id: string }>, res: Response) => {
+    const order = await ordersService.delete(req.params.id);
+    res.json({ message: 'Order deleted', order });
+}));
 
 export default router;

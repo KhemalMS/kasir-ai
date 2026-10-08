@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../services/error_notifier.dart';
+import '../services/error_mapper.dart';
 import 'package:provider/provider.dart';
 import '../config/app_theme.dart';
 import '../providers/staff_provider.dart';
@@ -42,9 +44,9 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.bgDark, // Matches mockup background
-      body: SafeArea(
+    return ColoredBox(
+      color: AppTheme.bgDark,
+      child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
           child: Column(

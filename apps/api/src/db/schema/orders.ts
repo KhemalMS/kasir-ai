@@ -3,6 +3,7 @@ import { sql } from 'drizzle-orm';
 import { staff } from './staff';
 import { branches } from './branches';
 import { shifts } from './shifts';
+import { customers } from './customers';
 
 export const orders = mysqlTable('orders', {
     id: varchar('id', { length: 36 }).primaryKey().$defaultFn(() => sql`(UUID())`),
@@ -14,10 +15,12 @@ export const orders = mysqlTable('orders', {
     tableNumber: varchar('table_number', { length: 20 }),
     subtotal: int('subtotal').notNull().default(0),
     taxAmount: int('tax_amount').notNull().default(0),
+    taxInvoiceNumber: varchar('tax_invoice_number', { length: 50 }),
     serviceAmount: int('service_amount').notNull().default(0),
     discountAmount: int('discount_amount').notNull().default(0),
     totalAmount: int('total_amount').notNull().default(0),
     status: varchar('status', { length: 30 }).notNull().default('Pending'),
+    customerId: varchar('customer_id', { length: 36 }),
     notes: text('notes'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),

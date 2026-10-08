@@ -8,11 +8,13 @@ class AuthProvider extends ChangeNotifier {
   String? _currentShiftId;
   bool _isLoading = true;
   bool _isAuthenticated = false;
+  bool _isConnectivityIssue = false;
 
   Map<String, dynamic>? get user => _user;
   Map<String, dynamic>? get staff => _staff;
   bool get isLoading => _isLoading;
   bool get isAuthenticated => _isAuthenticated;
+  bool get hasConnectivityIssue => _isConnectivityIssue;
   String get userRole => _staff?['role']?.toString().toLowerCase() ?? _user?['role'] ?? 'kasir';
   String get userName => _staff?['name'] ?? _user?['name'] ?? '-';
   String get staffId => _staff?['id'] ?? '';
@@ -34,17 +36,27 @@ class AuthProvider extends ChangeNotifier {
         _user = me['user'] as Map<String, dynamic>;
         _staff = me['staff'] as Map<String, dynamic>?;
         _isAuthenticated = true;
+        _isConnectivityIssue = false;
         debugPrint('✅ checkAuth via /me: ${_user?['email']} role=${userRole}');
       } else {
         _user = null;
         _staff = null;
         _isAuthenticated = false;
+        _isConnectivityIssue = false;
       }
     } catch (e) {
       debugPrint('⚠️ checkAuth failed: $e');
-      _user = null;
-      _staff = null;
-      _isAuthenticated = false;
+      if (e is ApiException && e.statusCode == 401) {
+        _user = null;
+        _staff = null;
+        _isAuthenticated = false;
+        _isConnectivityIssue = false;
+      } else {
+        _user = null;
+        _staff = null;
+        _isAuthenticated = false;
+        _isConnectivityIssue = true;
+      }
     }
 
     _isLoading = false;

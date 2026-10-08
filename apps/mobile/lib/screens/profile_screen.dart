@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+
+import '../services/error_notifier.dart';
+import '../services/error_mapper.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../config/app_theme.dart';
@@ -55,7 +58,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _uploadPhoto() async {
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Upload foto profil belum diimplementasi (Tugas API mendatang)')));
+    ErrorNotifier.showInfo('Upload foto profil belum diimplementasi (Tugas API mendatang)');
   }
 
   Future<void> _updateName() async {
@@ -66,9 +69,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       await auth.updateName(_nameCtrl.text.trim());
       setState(() => _isEditingName = false);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nama berhasil diperbarui')));
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal: $e'), backgroundColor: Colors.red));
+      if (mounted) ErrorNotifier.showSuccess('Nama berhasil diperbarui');
+    } catch (e, stack) {
+      if (mounted) {
+        final err = ErrorMapper.from(e, stack, module: 'profile', action: 'updateName');
+        ErrorNotifier.show(err);
+      }
     } finally {
       if (mounted) setState(() => _isLoadingName = false);
     }
@@ -77,7 +83,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _changePassword() async {
     final auth = context.read<AuthProvider>();
     if (_newPassCtrl.text != _confirmPassCtrl.text) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Password baru tidak cocok!'), backgroundColor: Colors.red));
+      ErrorNotifier.show(ErrorMapper.from(Exception('Password baru tidak cocok!'), null, module: 'profile', action: 'changePassword'));
       return;
     }
     
@@ -85,13 +91,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       await auth.changePassword(_oldPassCtrl.text, _newPassCtrl.text);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Password berhasil diubah')));
+        ErrorNotifier.showSuccess('Password berhasil diubah');
         _oldPassCtrl.clear();
         _newPassCtrl.clear();
         _confirmPassCtrl.clear();
       }
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal: $e'), backgroundColor: Colors.red));
+    } catch (e, stack) {
+      if (mounted) {
+        final err = ErrorMapper.from(e, stack, module: 'profile', action: 'changePassword');
+        ErrorNotifier.show(err);
+      }
     } finally {
       if (mounted) setState(() => _isLoadingPass = false);
     }

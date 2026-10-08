@@ -3,9 +3,10 @@ import { orders } from '../db/schema/orders.js';
 import { orderItems } from '../db/schema/orderItems.js';
 import { payments } from '../db/schema/payments.js';
 import { products } from '../db/schema/products.js';
-import { eq, and, desc, between } from 'drizzle-orm';
+import { eq, and, desc, between, inArray } from 'drizzle-orm';
 import { AppError } from '../middleware/errorHandler.js';
 import { inventoryService } from './inventory.service.js';
+import { customersService } from './customers.service.js';
 import { v4 as uuidv4 } from 'uuid';
 
 interface CreateOrderInput {
@@ -21,6 +22,7 @@ interface CreateOrderInput {
     discountAmount?: number;
     totalAmount: number;
     notes?: string;
+    customerId?: string;
     items: {
         productId: string;
         variantId?: string;
@@ -44,7 +46,11 @@ export const ordersService = {
         shiftId?: string;
         startDate?: Date;
         endDate?: Date;
+        limit?: number;
+        offset?: number;
     }) {
+        const limit = Math.min(filters?.limit ?? 50, 100);
+        const offset = filters?.offset ?? 0;
         const conditions = [];
         if (filters?.branchId) conditions.push(eq(orders.branchId, filters.branchId));
         if (filters?.status) conditions.push(eq(orders.status, filters.status));
@@ -58,7 +64,9 @@ export const ordersService = {
             .select()
             .from(orders)
             .where(query)
-            .orderBy(desc(orders.createdAt));
+            .orderBy(desc(orders.createdAt))
+            .limit(limit)
+            .offset(offset);
     },
 
     async findById(id: string) {
@@ -94,9 +102,11 @@ export const ordersService = {
     },
 
     async create(input: CreateOrderInput) {
-        return db.transaction(async (tx) => {
+        const result = await db.transaction(async (tx) => {
             // 1. Create order
             const orderId = uuidv4();
+            const calculatedTotal = input.subtotal + input.taxAmount + input.serviceAmount - (input.discountAmount || 0);
+            
             await tx
                 .insert(orders)
                 .values({
@@ -111,13 +121,21 @@ export const ordersService = {
                     taxAmount: input.taxAmount,
                     serviceAmount: input.serviceAmount,
                     discountAmount: input.discountAmount || 0,
-                    totalAmount: input.totalAmount,
+                    totalAmount: calculatedTotal,
                     notes: input.notes,
+                    customerId: input.customerId ?? null,
                     status: 'Sukses',
                 });
 
-            // 2. Create order items
+            // 2. Create order items — lookup product basePrice to lock HPP at order time
             if (input.items.length > 0) {
+                const productIds = [...new Set(input.items.map(i => i.productId))];
+                const productList = await tx
+                    .select({ id: products.id, basePrice: products.basePrice })
+                    .from(products)
+                    .where(inArray(products.id, productIds));
+                const basePriceMap = new Map(productList.map(p => [p.id, p.basePrice]));
+
                 await tx.insert(orderItems).values(
                     input.items.map((item) => ({
                         id: uuidv4(),
@@ -127,6 +145,7 @@ export const ordersService = {
                         quantity: item.quantity,
                         priceAtOrder: item.priceAtOrder || (item as any).price || 0,
                         variantPriceAtOrder: item.variantPriceAtOrder || 0,
+                        cogsAtOrder: basePriceMap.get(item.productId) ?? 0,
                         notes: item.notes,
                     }))
                 );
@@ -159,6 +178,17 @@ export const ordersService = {
 
             return order;
         });
+
+        // 5. Award loyalty points (outside transaction, non-critical)
+        if (input.customerId) {
+            try {
+                await customersService.addPoints(input.customerId, result.totalAmount);
+            } catch (e) {
+                console.warn('Loyalty points update warning:', e);
+            }
+        }
+
+        return result;
     },
 
     async updateStatus(id: string, status: string) {

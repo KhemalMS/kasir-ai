@@ -90,6 +90,17 @@ app.all('/api/auth/*', toNodeHandler(auth));
 // ── Static file serving for uploads ─────────────────────────────
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
+// ── API Root (public) ───────────────────────────────────────────
+app.get('/api', (_req, res) => {
+    res.json({
+        success: true,
+        name: 'Kasir-AI API',
+        version: '1.0.0',
+        status: 'running',
+        timestamp: new Date().toISOString(),
+    });
+});
+
 // ── Health Check (public) ───────────────────────────────────────
 app.get('/api/health', (_req, res) => {
     res.json({

@@ -18,19 +18,41 @@ import 'screens/staff_management_screen.dart';
 import 'screens/staff_detail_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/staff_form_screen.dart'; // Still needed for compilation if used, but maybe not in routes
+import 'services/error_notifier.dart';
+import 'services/error_mapper.dart';
+import 'services/app_error_logger.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Tangkap error UI / Flutter
+  // Inisialisasi error logger (file logging)
+  await AppErrorLogger.init();
+
+  // Tangkap error UI / Flutter (widget build errors)
   FlutterError.onError = (FlutterErrorDetails details) {
     FlutterError.presentError(details);
-    debugPrint('[FLUTTER ERROR] ${details.exceptionAsString()}');
+    AppErrorLogger.logRaw(
+      details.exception,
+      stack: details.stack,
+      module: 'flutter',
+      action: 'widgetBuild',
+    );
+    final error = ErrorMapper.from(details.exception, details.stack,
+        module: 'system', action: 'flutter_ui_render');
+    ErrorNotifier.show(error);
   };
 
-  // Tangkap error asinkron / Dart
+  // Tangkap error asinkron / Dart (unhandled async errors)
   PlatformDispatcher.instance.onError = (error, stack) {
-    debugPrint('[DART ERROR] $error\n$stack');
+    AppErrorLogger.logRaw(
+      error,
+      stack: stack,
+      module: 'flutter',
+      action: 'asyncZone',
+    );
+    final appError = ErrorMapper.from(error, stack,
+        module: 'system', action: 'async_dart');
+    ErrorNotifier.show(appError);
     return true;
   };
 
@@ -66,6 +88,8 @@ class KasirAIApp extends StatelessWidget {
         title: 'Kasir-AI',
         debugShowCheckedModeBanner: kDebugMode,
         theme: settings.isDark ? AppTheme.darkTheme : AppTheme.lightTheme,
+        scaffoldMessengerKey: ErrorNotifier.messengerKey,
+        navigatorKey: ErrorNotifier.navigatorKey,
         home: const AuthWrapper(),
         routes: {
           '/login': (_) => const LoginScreen(),

@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { AppError } from '../middleware/errorHandler.js';
 import { paymentsService } from '../services/payments.service.js';
 
 const router = Router();

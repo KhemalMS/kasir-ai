@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import '../widgets/error_widgets.dart';
+
+import '../models/app_error.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../providers/auth_provider.dart';
@@ -8,6 +11,8 @@ import '../services/categories_service.dart';
 import '../services/orders_service.dart';
 import '../config/app_theme.dart';
 import '../config/api_config.dart';
+import '../services/error_notifier.dart';
+import '../services/error_mapper.dart';
 import 'payment_screen.dart';
 import 'receipt_screen.dart';
 
@@ -30,7 +35,7 @@ class _KasirScreenState extends State<KasirScreen> {
   final _searchController = TextEditingController();
   String _searchQuery = '';
   bool _isLoadingProducts = true;
-  String? _loadError;
+  AppError? _loadError;
   List<dynamic> _shiftOrders = [];
   bool _isLoadingHistory = false;
 
@@ -49,9 +54,10 @@ class _KasirScreenState extends State<KasirScreen> {
     try {
       final orders = await OrdersService.getByShift(shiftId);
       if (mounted) setState(() { _shiftOrders = orders; _isLoadingHistory = false; });
-    } catch (e) {
-      debugPrint('History load error: $e');
+    } catch (e, stack) {
       if (mounted) setState(() => _isLoadingHistory = false);
+      final err = ErrorMapper.from(e, stack, module: 'kasir', action: 'loadShiftOrders');
+      ErrorNotifier.show(err);
     }
   }
 
@@ -75,14 +81,15 @@ class _KasirScreenState extends State<KasirScreen> {
           _isLoadingProducts = false;
         });
       }
-    } catch (e) {
-      debugPrint('❌ Load error: $e');
+    } catch (e, stack) {
+      final err = ErrorMapper.from(e, stack, module: 'kasir', action: 'loadData');
       if (mounted) {
         setState(() {
           _isLoadingProducts = false;
-          _loadError = e.toString();
+          _loadError = err;
         });
       }
+      ErrorNotifier.show(err);
     }
   }
 
@@ -423,12 +430,9 @@ class _KasirScreenState extends State<KasirScreen> {
           ),
         );
       }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal: $e'), backgroundColor: AppTheme.danger),
-        );
-      }
+    } catch (e, stack) {
+      final err = ErrorMapper.from(e, stack, module: 'kasir', action: 'processPayment');
+      ErrorNotifier.show(err);
     }
   }
 
@@ -742,26 +746,9 @@ class _KasirScreenState extends State<KasirScreen> {
     }
 
     if (_loadError != null) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.error_outline, size: 48, color: AppTheme.danger),
-            const SizedBox(height: 12),
-            Text('Gagal memuat produk', style: TextStyle(color: textColor, fontSize: 16)),
-            const SizedBox(height: 4),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: Text(_loadError!, style: TextStyle(color: mutedColor, fontSize: 12), textAlign: TextAlign.center),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: _loadData,
-              icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('Coba Lagi'),
-            ),
-          ],
-        ),
+      return ErrorState(
+        error: _loadError!,
+        onRetry: _loadData,
       );
     }
 

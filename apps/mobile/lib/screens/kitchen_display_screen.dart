@@ -1,5 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+
+import '../services/error_notifier.dart';
+import '../services/error_mapper.dart';
 import '../services/api_service.dart';
 import '../config/app_theme.dart';
 
@@ -44,9 +47,10 @@ class _KitchenDisplayScreenState extends State<KitchenDisplayScreen> {
       final statusParam = _filter == 'Semua' ? '' : '?status=$_filter';
       final tickets = await ApiService.getList('/kitchen/tickets$statusParam');
       if (mounted) setState(() { _tickets = tickets; _isLoading = false; });
-    } catch (e) {
-      debugPrint('Kitchen load error: $e');
+    } catch (e, stack) {
+      final err = ErrorMapper.from(e, stack, module: 'kitchen', action: 'loadTickets');
       if (mounted) setState(() => _isLoading = false);
+      ErrorNotifier.show(err);
     }
   }
 
@@ -54,11 +58,10 @@ class _KitchenDisplayScreenState extends State<KitchenDisplayScreen> {
     try {
       await ApiService.put('/kitchen/tickets/$orderId/status', {'status': status});
       _loadTickets();
-    } catch (e) {
+    } catch (e, stack) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal update: $e'), backgroundColor: AppTheme.danger),
-        );
+        final err = ErrorMapper.from(e, stack, module: 'kitchen', action: 'updateStatus');
+        ErrorNotifier.show(err);
       }
     }
   }

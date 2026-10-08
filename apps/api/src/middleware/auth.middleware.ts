@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { fromNodeHeaders } from 'better-auth/node';
+import { AppError } from './errorHandler.js';
 import { auth } from '../lib/better-auth.js';
 import { staffService } from '../services/staff.service.js';
 import { db } from '../db/index.js';
@@ -142,8 +143,7 @@ export async function requireAuth(
         }
 
         if (!session) {
-            res.status(401).json({ error: 'Unauthorized: Login required' });
-            return;
+            return next(AppError.unauthorized('Login required'));
         }
 
         req.user = session.user;
@@ -176,7 +176,7 @@ export async function requireAuth(
 
         next();
     } catch (error) {
-        res.status(401).json({ error: 'Unauthorized: Invalid session' });
+        next(AppError.unauthorized('Invalid session'));
     }
 }
 
@@ -190,12 +190,7 @@ export function requireRole(...roles: string[]) {
         const userRole = req.staffRole || 'kasir';
 
         if (!roles.includes(userRole)) {
-            res.status(403).json({
-                error: 'Forbidden: Insufficient permissions',
-                required: roles,
-                current: userRole,
-            });
-            return;
+            return next(AppError.forbidden('Insufficient permissions'));
         }
 
         next();

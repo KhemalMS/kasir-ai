@@ -8,7 +8,9 @@ import { eq, like, and } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 
 export const productsService = {
-    async findAll(filters?: { categoryId?: string; search?: string; includeInactive?: boolean }) {
+    async findAll(filters?: { categoryId?: string; search?: string; includeInactive?: boolean; limit?: number; offset?: number }) {
+        const limit = Math.min(filters?.limit ?? 50, 100);
+        const offset = filters?.offset ?? 0;
         const conditions = [];
 
         // Only filter active unless admin requests all
@@ -46,7 +48,9 @@ export const productsService = {
             })
             .from(products)
             .leftJoin(categories, eq(products.categoryId, categories.id))
-            .where(conditions.length > 0 ? and(...conditions) : undefined);
+            .where(conditions.length > 0 ? and(...conditions) : undefined)
+            .limit(limit)
+            .offset(offset);
 
         // Fetch variants for all products in one query
         if (rows.length === 0) return rows;

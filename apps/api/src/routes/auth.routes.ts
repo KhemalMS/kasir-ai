@@ -1,7 +1,13 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import { AppError } from '../middleware/errorHandler.js';
 import { toNodeHandler } from 'better-auth/node';
 import { auth } from '../lib/better-auth.js';
-import { requireAuth, requireRole, type AuthenticatedRequest } from '../middleware/auth.middleware.js';
+import { requireAuth, requireRole, type AuthenticatedRequest, invalidateSessionCache } from '../middleware/auth.middleware.js';
+import bcrypt from 'bcryptjs';
+import { db } from '../db/index.js';
+import { staff, user, session, activityLogs } from '../db/schema/index.js';
+import { eq, sql } from 'drizzle-orm';
+import { v4 as uuidv4 } from 'uuid';
 
 const router = Router();
 
@@ -15,6 +21,139 @@ router.get('/me', requireAuth, (req: AuthenticatedRequest, res: Response) => {
         user: req.user ?? null,
         staff: req.staffMember ?? null,
     });
+});
+
+// ─────────────────────────────────────────────────────────────
+// POST /auth/login-pin — PIN Login endpoint
+// Body: { staffProfileId: string, pin: string }
+// ─────────────────────────────────────────────────────────────
+router.post('/login-pin', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { staffProfileId, pin } = req.body;
+        if (!staffProfileId || !pin) {
+            throw AppError.validation('staffProfileId dan pin wajib diisi');
+        }
+
+        // 1. Fetch staff + user
+        const staffData = await db
+            .select({ staff, user })
+            .from(staff)
+            .where(eq(staff.id, staffProfileId))
+            .innerJoin(user, eq(user.id, staff.userId))
+            .limit(1);
+
+        if (!staffData.length) {
+            throw AppError.unauthorized('Staff tidak ditemukan');
+        }
+
+        const { staff: s, user: u } = staffData[0];
+
+        // 2. Check lockout
+        const now = new Date();
+        if (s.pinLockedUntil && now < s.pinLockedUntil) {
+            res.status(429).json({
+                success: false,
+                code: 'KSR-AUTH-429',
+                category: 'AUTH',
+                severity: 'warning',
+                message: 'Akun terkunci karena terlalu banyak percobaan gagal.',
+                lockedUntil: s.pinLockedUntil.toISOString(),
+            });
+            return;
+        }
+
+        // 3. Verify PIN
+        if (!s.pinCode) {
+            throw AppError.unauthorized('Staff belum memiliki PIN');
+        }
+
+        const isValid = await bcrypt.compare(pin, s.pinCode);
+
+        // 4. Handle Failed Attempt
+        if (!isValid) {
+            let shouldLock = false;
+            let lockUntilTimestamp: string | null = null;
+
+            await db.transaction(async (tx) => {
+                const newAttempts = (s.pinAttempts || 0) + 1;
+                shouldLock = newAttempts >= 5;
+                const lockUntil = shouldLock 
+                    ? new Date(Date.now() + 5 * 60 * 1000) // 5 minutes
+                    : null;
+
+                await tx.update(staff)
+                    .set({
+                        pinAttempts: newAttempts,
+                        pinLockedUntil: lockUntil,
+                    })
+                    .where(eq(staff.id, staffProfileId));
+
+                await tx.insert(activityLogs).values({
+                    staffId: staffProfileId,
+                    action: 'PIN_LOGIN_FAILED',
+                    description: `Failed PIN attempt (${newAttempts}/5)`,
+                });
+
+                if (shouldLock && lockUntil) {
+                    lockUntilTimestamp = lockUntil.toISOString();
+                }
+            });
+
+            if (shouldLock && lockUntilTimestamp) {
+                res.status(429).json({
+                    success: false,
+                    code: 'KSR-AUTH-429',
+                    category: 'AUTH',
+                    severity: 'warning',
+                    message: 'Terlalu banyak percobaan gagal. Akun terkunci.',
+                    lockedUntil: lockUntilTimestamp,
+                });
+                return;
+            }
+            throw AppError.unauthorized('PIN salah');
+        }
+
+        // 5. Handle Success Attempt
+        const token = uuidv4();
+        await db.transaction(async (tx) => {
+            // Reset attempts
+            await tx.update(staff)
+                .set({ pinAttempts: 0, pinLockedUntil: null })
+                .where(eq(staff.id, staffProfileId));
+
+            // Log success
+            await tx.insert(activityLogs).values({
+                staffId: staffProfileId,
+                action: 'PIN_LOGIN_SUCCESS',
+                description: 'Successful PIN login',
+            });
+
+            // Create Opaque Session for Better-Auth
+            await tx.insert(session).values({
+                id: uuidv4(),
+                token,
+                userId: u.id,
+                expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+                ipAddress: req.ip || null,
+                userAgent: req.get('user-agent') || null,
+            });
+        });
+
+        // 6. Return standard auth response
+        res.json({
+            accessToken: token, // This is the opaque token Flutter will use as Bearer
+            refreshToken: token,
+            user: { id: u.id, email: u.email, name: u.name },
+            staff: {
+                id: s.id,
+                name: s.name,
+                role: s.role,
+                branchId: s.branchId,
+            },
+        });
+    } catch (e) {
+        next(e);
+    }
 });
 
 // ─────────────────────────────────────────────────────────────

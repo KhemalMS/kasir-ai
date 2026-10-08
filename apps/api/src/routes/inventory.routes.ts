@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { AppError } from '../middleware/errorHandler.js';
 import { inventoryService } from '../services/inventory.service.js';
 
 const router = Router();
@@ -20,7 +21,7 @@ router.get('/alerts', async (_req: Request, res: Response) => {
 
 router.get('/:id', async (req: Request<{ id: string }>, res: Response) => {
     const item = await inventoryService.findById(req.params.id);
-    if (!item) { res.status(404).json({ error: 'Inventory item not found' }); return; }
+    if (!item) { throw AppError.notFound(); }
     res.json(item);
 });
 
@@ -31,13 +32,13 @@ router.post('/', async (req: Request, res: Response) => {
 
 router.put('/:id', async (req: Request<{ id: string }>, res: Response) => {
     const item = await inventoryService.update(req.params.id, req.body);
-    if (!item) { res.status(404).json({ error: 'Inventory item not found' }); return; }
+    if (!item) { throw AppError.notFound(); }
     res.json(item);
 });
 
 router.delete('/:id', async (req: Request<{ id: string }>, res: Response) => {
     const item = await inventoryService.delete(req.params.id);
-    if (!item) { res.status(404).json({ error: 'Inventory item not found' }); return; }
+    if (!item) { throw AppError.notFound(); }
     res.json({ message: 'Inventory item deleted' });
 });
 
@@ -45,8 +46,7 @@ router.delete('/:id', async (req: Request<{ id: string }>, res: Response) => {
 router.post('/:id/adjust', async (req: Request<{ id: string }>, res: Response) => {
     const { quantity, type, reason, staffId } = req.body;
     if (!quantity || !type) {
-        res.status(400).json({ error: 'quantity and type are required' });
-        return;
+        throw AppError.validation('Data tidak valid');
     }
     const item = await inventoryService.adjustStock(req.params.id, staffId || null, Number(quantity), type, reason);
     res.json(item);
@@ -73,8 +73,7 @@ router.get('/recipes/:productId', async (req: Request<{ productId: string }>, re
 router.post('/recipes/:productId', async (req: Request<{ productId: string }>, res: Response) => {
     const { ingredients, variantId } = req.body;
     if (!Array.isArray(ingredients)) {
-        res.status(400).json({ error: 'ingredients array is required' });
-        return;
+        throw AppError.validation('Data tidak valid');
     }
     const recipe = await inventoryService.setRecipe(req.params.productId, ingredients, variantId || null);
     res.json(recipe);

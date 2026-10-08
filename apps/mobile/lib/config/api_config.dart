@@ -108,19 +108,23 @@ class ApiConfig {
       subnets = subnets.toSet().toList(); // deduplicate
 
       for (final subnet in subnets) {
-        final futures = List.generate(254, (i) => i + 1).map((host) async {
-          final url = 'http://$subnet.$host:3001/api/health';
-          try {
-            final resp = await http.get(Uri.parse(url)).timeout(
-              const Duration(milliseconds: 800),
-            );
-            if (resp.statusCode == 200) return 'http://$subnet.$host:3001/api';
-          } catch (_) {}
-          return null;
-        });
-        final results = await Future.wait(futures);
-        final found = results.whereType<String>().firstOrNull;
-        if (found != null) return found;
+        for (int i = 1; i <= 254; i += 10) {
+          final chunk = List.generate(10, (j) => i + j)
+              .where((h) => h <= 254)
+              .map((host) async {
+            final url = 'http://$subnet.$host:3001/api/health';
+            try {
+              final resp = await http.get(Uri.parse(url)).timeout(
+                const Duration(milliseconds: 800),
+              );
+              if (resp.statusCode == 200) return 'http://$subnet.$host:3001/api';
+            } catch (_) {}
+            return null;
+          });
+          final results = await Future.wait(chunk);
+          final found = results.whereType<String>().firstOrNull;
+          if (found != null) return found;
+        }
       }
     } catch (e) {
       debugPrint('Network scan error: $e');

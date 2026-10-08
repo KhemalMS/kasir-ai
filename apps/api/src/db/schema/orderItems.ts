@@ -12,6 +12,7 @@ export const orderItems = mysqlTable('order_items', {
     quantity: int('quantity').notNull(),
     priceAtOrder: int('price_at_order').notNull(),
     variantPriceAtOrder: int('variant_price_at_order').notNull().default(0),
+    cogsAtOrder: int('cogs_at_order').notNull().default(0),
     notes: text('notes'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
 });

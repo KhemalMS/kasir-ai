@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { AppError } from '../middleware/errorHandler.js';
 import { categoriesService } from '../services/categories.service.js';
 
 const router = Router();
@@ -15,13 +16,13 @@ router.post('/', async (req: Request, res: Response) => {
 
 router.put('/:id', async (req: Request<{ id: string }>, res: Response) => {
     const category = await categoriesService.update(req.params.id, req.body);
-    if (!category) { res.status(404).json({ error: 'Category not found' }); return; }
+    if (!category) { throw AppError.notFound(); }
     res.json(category);
 });
 
 router.delete('/:id', async (req: Request<{ id: string }>, res: Response) => {
     const category = await categoriesService.delete(req.params.id);
-    if (!category) { res.status(404).json({ error: 'Category not found' }); return; }
+    if (!category) { throw AppError.notFound(); }
     res.json({ message: 'Category deleted' });
 });
 

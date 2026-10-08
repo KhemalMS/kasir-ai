@@ -1,31 +1,53 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
+import { AppError, asyncHandler } from '../middleware/errorHandler.js';
 import multer from 'multer';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import fs from 'fs';
+import fsOrig from 'fs';
+import { v4 as uuidv4 } from 'uuid';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // ── Products upload directory ─────────────────────────────────────
 const productsDir = path.join(__dirname, '../../uploads/products');
-if (!fs.existsSync(productsDir)) {
-    fs.mkdirSync(productsDir, { recursive: true });
+if (!fsOrig.existsSync(productsDir)) {
+    fsOrig.mkdirSync(productsDir, { recursive: true });
 }
 
 // ── Avatars upload directory ──────────────────────────────────────
 const avatarsDir = path.join(__dirname, '../../uploads/avatars');
-if (!fs.existsSync(avatarsDir)) {
-    fs.mkdirSync(avatarsDir, { recursive: true });
+if (!fsOrig.existsSync(avatarsDir)) {
+    fsOrig.mkdirSync(avatarsDir, { recursive: true });
 }
 
 // ── Helper: image file filter ─────────────────────────────────────
 const imageFilter: multer.Options['fileFilter'] = (_req, file, cb) => {
-    const allowed = /jpeg|jpg|png|webp/;
-    const ext = allowed.test(path.extname(file.originalname).toLowerCase());
-    const mime = allowed.test(file.mimetype);
-    if (ext && mime) cb(null, true);
-    else cb(new Error('Only .jpg, .jpeg, .png, .webp files are allowed'));
+    // Only JPG, PNG, WEBP allowed
+    const allowedExtensions = ['.jpeg', '.jpg', '.png', '.webp'];
+    const originalExt = path.extname(file.originalname).toLowerCase();
+    
+    // Validate MIME type
+    const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    const isMimeAllowed = allowedMimeTypes.includes(file.mimetype);
+    
+    // Validate Extension
+    const isExtAllowed = allowedExtensions.includes(originalExt);
+    
+    if (isExtAllowed && isMimeAllowed) {
+        cb(null, true);
+    } else {
+        cb(new Error('Only .jpg, .jpeg, .png, .webp files are allowed'));
+    }
+};
+
+// Helper: safe extension extractor
+const getSafeExt = (originalname: string) => {
+    const ext = path.extname(originalname).toLowerCase();
+    if (['.jpeg', '.jpg', '.png', '.webp'].includes(ext)) {
+        return ext;
+    }
+    return '.jpg'; // Fallback safely
 };
 
 // ── Multer: products (5 MB) ───────────────────────────────────────
@@ -33,24 +55,24 @@ const productUpload = multer({
     storage: multer.diskStorage({
         destination: (_req, _file, cb) => cb(null, productsDir),
         filename: (_req, file, cb) => {
-            const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-            cb(null, `product-${uniqueSuffix}${path.extname(file.originalname)}`);
+            // UUID only to prevent path traversal
+            cb(null, `product-${uuidv4()}${getSafeExt(file.originalname)}`);
         },
     }),
-    limits: { fileSize: 5 * 1024 * 1024 },
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB max
     fileFilter: imageFilter,
 });
 
-// ── Multer: avatars (2 MB) ────────────────────────────────────────
+// ── Multer: avatars (5 MB) ────────────────────────────────────────
 const avatarUpload = multer({
     storage: multer.diskStorage({
         destination: (_req, _file, cb) => cb(null, avatarsDir),
         filename: (_req, file, cb) => {
-            const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-            cb(null, `avatar-${uniqueSuffix}${path.extname(file.originalname)}`);
+            // UUID only to prevent path traversal
+            cb(null, `avatar-${uuidv4()}${getSafeExt(file.originalname)}`);
         },
     }),
-    limits: { fileSize: 2 * 1024 * 1024 }, // 2 MB max
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB max
     fileFilter: imageFilter,
 });
 
@@ -63,24 +85,41 @@ const buildUrl = (req: Request, relativePath: string): string => {
 
 const router = Router();
 
+// Error handler middleware for multer
+const handleMulterError = (err: any, req: Request, res: Response, next: NextFunction) => {
+    if (err instanceof multer.MulterError) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+            next(AppError.validation('File size exceeds the 5MB limit'));
+        } else {
+            next(AppError.validation(`Upload error: ${err.message}`));
+        }
+    } else if (err) {
+        next(AppError.validation(err.message));
+    } else {
+        next();
+    }
+};
+
 // POST /api/upload          → product image
-router.post('/', productUpload.single('image'), (req: Request, res: Response) => {
+router.post('/', (req, res, next) => {
+    productUpload.single('image')(req, res, (err) => handleMulterError(err, req, res, next));
+}, asyncHandler(async (req: Request, res: Response) => {
     if (!req.file) {
-        res.status(400).json({ success: false, error: 'No image file provided' });
-        return;
+        throw AppError.validation('No image file provided');
     }
     const imageUrl = buildUrl(req, `/uploads/products/${req.file.filename}`);
     res.json({ success: true, imageUrl });
-});
+}));
 
-// POST /api/upload/avatar   → staff avatar (2 MB, jpg/png/webp only)
-router.post('/avatar', avatarUpload.single('image'), (req: Request, res: Response) => {
+// POST /api/upload/avatar   → staff avatar
+router.post('/avatar', (req, res, next) => {
+    avatarUpload.single('image')(req, res, (err) => handleMulterError(err, req, res, next));
+}, asyncHandler(async (req: Request, res: Response) => {
     if (!req.file) {
-        res.status(400).json({ success: false, error: 'No image file provided' });
-        return;
+        throw AppError.validation('No image file provided');
     }
     const imageUrl = buildUrl(req, `/uploads/avatars/${req.file.filename}`);
     res.json({ success: true, imageUrl });
-});
+}));
 
 export default router;

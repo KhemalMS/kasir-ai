@@ -1,5 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import '../services/error_notifier.dart';
+import '../services/error_mapper.dart';
 import 'package:provider/provider.dart';
 import '../config/app_theme.dart';
 import '../providers/staff_provider.dart';
@@ -637,9 +639,7 @@ class _StaffDetailScreenState extends State<StaffDetailScreen> {
             TextButton.icon(
               icon: const Icon(Icons.add),
               label: const Text('Catat Gaji'),
-              onPressed: () {
-                // TODO: Show add salary dialog
-              },
+              onPressed: _showAddSalaryDialog,
             )
           ],
         ),
@@ -704,6 +704,177 @@ class _StaffDetailScreenState extends State<StaffDetailScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _showAddSalaryDialog() async {
+    String type = 'Tetap';
+    final amountCtrl = TextEditingController();
+    final notesCtrl = TextEditingController();
+    DateTime? selectedDate = DateTime.now();
+    bool isSubmitting = false;
+    final formKey = GlobalKey<FormState>();
+
+    await showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return Dialog(
+              backgroundColor: AppTheme.surfaceDark,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              child: Container(
+                width: 400,
+                padding: const EdgeInsets.all(24),
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Catat Gaji Baru',
+                        style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 24),
+                      DropdownButtonFormField<String>(
+                        value: type,
+                        dropdownColor: AppTheme.surfaceDark,
+                        style: const TextStyle(color: Colors.white, fontSize: 14),
+                        decoration: InputDecoration(
+                          labelText: 'Tipe Pembayaran *',
+                          labelStyle: const TextStyle(color: Colors.white54),
+                          filled: true,
+                          fillColor: Colors.white.withOpacity(0.05),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                        ),
+                        items: ['Tetap', 'Per Jam', 'Bonus', 'Tunjangan', 'Lembur']
+                            .map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                        onChanged: (v) => setStateDialog(() => type = v!),
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: amountCtrl,
+                        keyboardType: TextInputType.number,
+                        style: const TextStyle(color: Colors.white, fontSize: 14),
+                        decoration: InputDecoration(
+                          labelText: 'Nominal (Rp) *',
+                          labelStyle: const TextStyle(color: Colors.white54),
+                          prefixText: 'Rp ',
+                          prefixStyle: const TextStyle(color: Colors.white),
+                          filled: true,
+                          fillColor: Colors.white.withOpacity(0.05),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                        ),
+                        validator: (v) {
+                          if (v == null || v.isEmpty) return 'Wajib diisi';
+                          if (int.tryParse(v) == null) return 'Harus berupa angka valid';
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      InkWell(
+                        onTap: () async {
+                          final date = await showDatePicker(
+                            context: context,
+                            initialDate: selectedDate ?? DateTime.now(),
+                            firstDate: DateTime(2000),
+                            lastDate: DateTime(2100),
+                          );
+                          if (date != null) {
+                            setStateDialog(() => selectedDate = date);
+                          }
+                        },
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.05),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                selectedDate != null
+                                    ? 'Tanggal: ${selectedDate!.day.toString().padLeft(2, '0')}/${selectedDate!.month.toString().padLeft(2, '0')}/${selectedDate!.year}'
+                                    : 'Pilih Tanggal Efektif *',
+                                style: const TextStyle(color: Colors.white, fontSize: 14),
+                              ),
+                              const Icon(Icons.calendar_today, color: Colors.white54, size: 18),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: notesCtrl,
+                        maxLines: 2,
+                        style: const TextStyle(color: Colors.white, fontSize: 14),
+                        decoration: InputDecoration(
+                          labelText: 'Catatan (Opsional)',
+                          labelStyle: const TextStyle(color: Colors.white54),
+                          filled: true,
+                          fillColor: Colors.white.withOpacity(0.05),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: isSubmitting ? null : () => Navigator.pop(context),
+                            child: const Text('Batal', style: TextStyle(color: Colors.white54)),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton(
+                            onPressed: isSubmitting
+                                ? null
+                                : () async {
+                                    if (!formKey.currentState!.validate()) return;
+                                    if (selectedDate == null) {
+                                      ErrorNotifier.show(ErrorMapper.from(Exception('Pilih tanggal efektif!'), null, module: 'staff', action: 'addSalary'));
+                                      return;
+                                    }
+                                    setStateDialog(() => isSubmitting = true);
+                                    try {
+                                      final payload = {
+                                        'salaryType': type,
+                                        'amount': int.parse(amountCtrl.text),
+                                        'effectiveDate': '${selectedDate!.year}-${selectedDate!.month.toString().padLeft(2, '0')}-${selectedDate!.day.toString().padLeft(2, '0')}',
+                                        'notes': notesCtrl.text,
+                                      };
+                                      await ApiService.post('/staff/${widget.staffId}/salary', payload);
+                                      if (mounted) {
+                                        Navigator.pop(context);
+                                        ErrorNotifier.showSuccess('Gaji berhasil dicatat');
+                                        _loadData();
+                                      }
+                                    } catch (e, stack) {
+                                      setStateDialog(() => isSubmitting = false);
+                                      final err = ErrorMapper.from(e, stack, module: 'staff', action: 'addSalary');
+                                      ErrorNotifier.show(err);
+                                    }
+                                  },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primary,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                            child: isSubmitting
+                                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                : const Text('Simpan', style: TextStyle(color: Colors.white)),
+                          ),
+                        ],
+                      )
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

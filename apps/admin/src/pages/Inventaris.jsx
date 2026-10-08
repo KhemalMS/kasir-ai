@@ -38,6 +38,7 @@ export default function Inventaris() {
             branchId: formData.get('branch'),
             quantity: qData.toString(),
             unit: formData.get('unit'),
+            status: newStatus,
         };
 
         try {

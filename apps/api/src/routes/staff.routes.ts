@@ -1,21 +1,66 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import { AppError } from '../middleware/errorHandler.js';
+import { z } from 'zod';
+import { validateQuery } from '../middleware/validate.middleware.js';
 import { staffService } from '../services/staff.service.js';
 
 const router = Router();
+import { requireAuth } from '../middleware/auth.middleware.js';
+import { db } from '../db/index.js';
+import { staff } from '../db/schema/index.js';
+import { eq, and } from 'drizzle-orm';
+
+// ─────────────────────────────────────────────────────────────
+// GET /staff/public — Public endpoint for PIN Login staff selection
+// Query: ?branchId
+// ─────────────────────────────────────────────────────────────
+router.get('/public', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const branchId = req.query.branchId as string;
+        if (!branchId) throw AppError.validation('branchId is required');
+        
+        const staffList = await db
+            .select({
+                id: staff.id,
+                name: staff.name,
+                role: staff.role,
+                imageUrl: staff.imageUrl,
+            })
+            .from(staff)
+            .where(and(
+                eq(staff.branchId, branchId),
+                eq(staff.status, 'Aktif')
+            ));
+            
+        res.json({ success: true, data: staffList });
+    } catch (e) { next(e); }
+});
+
+// Protect all subsequent routes
+router.use(requireAuth);
 
 // ─────────────────────────────────────────────────────────────
 // GET /staff — list all staff (with filters & pagination)
 // Query: ?branchId, ?role, ?status, ?search, ?page, ?limit
 // ─────────────────────────────────────────────────────────────
-router.get('/', async (req: Request, res: Response, next: NextFunction) => {
+const listQuerySchema = z.object({
+    branchId: z.string().optional(),
+    role: z.string().optional(),
+    status: z.string().optional(),
+    search: z.string().optional(),
+    page: z.coerce.number().int().min(1).optional(),
+    limit: z.coerce.number().int().min(1).max(100).default(50),
+});
+
+router.get('/', validateQuery(listQuerySchema), async (req: Request, res: Response, next: NextFunction) => {
     try {
         const result = await staffService.findAll({
-            branchId: req.query.branchId as string,
-            role:     req.query.role     as string,
-            status:   req.query.status   as string,
-            search:   req.query.search   as string,
-            page:     req.query.page  ? parseInt(req.query.page  as string) : undefined,
-            limit:    req.query.limit ? parseInt(req.query.limit as string) : undefined,
+            branchId: req.query.branchId as string | undefined,
+            role: req.query.role as string | undefined,
+            status: req.query.status as string | undefined,
+            search: req.query.search as string | undefined,
+            page: req.query.page as number | undefined,
+            limit: req.query.limit as number | undefined,
         });
         res.json(result);
     } catch (e) { next(e); }
@@ -46,7 +91,7 @@ router.get('/by-user/:userId', async (req: Request<{ userId: string }>, res: Res
         }
         // Fallback: query DB (e.g. admin requesting another user's staff record)
         const member = await staffService.findByUserId(req.params.userId);
-        if (!member) { res.status(404).json({ error: 'Staff not found for this user' }); return; }
+        if (!member) { throw AppError.notFound(); }
         res.json(member);
     } catch (e) { next(e); }
 });
@@ -58,7 +103,7 @@ router.get('/by-user/:userId', async (req: Request<{ userId: string }>, res: Res
 router.get('/:id', async (req: Request<{ id: string }>, res: Response, next: NextFunction) => {
     try {
         const member = await staffService.findById(req.params.id);
-        if (!member) { res.status(404).json({ error: 'Staff not found' }); return; }
+        if (!member) { throw AppError.notFound(); }
         res.json(member);
     } catch (e) { next(e); }
 });
@@ -79,7 +124,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 router.put('/:id', async (req: Request<{ id: string }>, res: Response, next: NextFunction) => {
     try {
         const member = await staffService.update(req.params.id, req.body);
-        if (!member) { res.status(404).json({ error: 'Staff not found' }); return; }
+        if (!member) { throw AppError.notFound(); }
         res.json(member);
     } catch (e) { next(e); }
 });
@@ -90,7 +135,7 @@ router.put('/:id', async (req: Request<{ id: string }>, res: Response, next: Nex
 router.delete('/:id', async (req: Request<{ id: string }>, res: Response, next: NextFunction) => {
     try {
         const member = await staffService.delete(req.params.id);
-        if (!member) { res.status(404).json({ error: 'Staff not found' }); return; }
+        if (!member) { throw AppError.notFound(); }
         res.json({ message: 'Staff deleted' });
     } catch (e) { next(e); }
 });
@@ -102,9 +147,9 @@ router.delete('/:id', async (req: Request<{ id: string }>, res: Response, next: 
 router.post('/:id/reset-pin', async (req: Request<{ id: string }>, res: Response, next: NextFunction) => {
     try {
         const { pin } = req.body;
-        if (!pin) { res.status(400).json({ error: 'PIN wajib diisi' }); return; }
+        if (!pin) { throw AppError.validation('Data tidak valid'); }
         const member = await staffService.resetPin(req.params.id, pin);
-        if (!member) { res.status(404).json({ error: 'Staff not found' }); return; }
+        if (!member) { throw AppError.notFound(); }
         res.json({ message: 'PIN berhasil diperbarui', staff: member });
     } catch (e) { next(e); }
 });
@@ -139,8 +184,7 @@ router.post('/:id/salary', async (req: Request<{ id: string }>, res: Response, n
     try {
         const { salaryType, amount, effectiveDate, notes } = req.body;
         if (!salaryType || !amount || !effectiveDate) {
-            res.status(400).json({ error: 'salaryType, amount, dan effectiveDate wajib diisi' });
-            return;
+            throw AppError.validation('Data tidak valid');
         }
         const record = await staffService.addSalaryRecord({
             staffId:       req.params.id,

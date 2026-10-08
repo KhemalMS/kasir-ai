@@ -1,4 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import { AppError } from '../middleware/errorHandler.js';
 import { kitchenService } from '../services/kitchen.service.js';
 
 const router = Router();
@@ -14,7 +15,7 @@ router.get('/tickets', async (req: Request, res: Response, next: NextFunction) =
 router.put('/tickets/:orderId/status', async (req: Request<{ orderId: string }>, res: Response, next: NextFunction) => {
     try {
         const order = await kitchenService.updateTicketStatus(req.params.orderId, req.body.status);
-        if (!order) { res.status(404).json({ error: 'Order not found' }); return; }
+        if (!order) { throw AppError.notFound(); }
         res.json(order);
     } catch (e) { next(e); }
 });

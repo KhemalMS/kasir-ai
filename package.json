@@ -4,6 +4,14 @@
   "workspaces": [
     "apps/*"
   ],
+  "scripts": {
+    "dev:api": "cd apps/api && npm.cmd run dev",
+    "build:api": "cd apps/api && npm.cmd run build",
+    "check:api": "cd apps/api && npm.cmd exec tsc -- --noEmit",
+    "build:web": "cd apps/mobile && C:/flutter/bin/flutter.bat build web --release --no-wasm-dry-run --pwa-strategy=none",
+    "build:apk": "cd apps/mobile && C:/flutter/bin/flutter.bat build apk --release",
+    "build:all": "npm.cmd run build:api && npm.cmd run build:web"
+  },
   "devDependencies": {
     "tsx": "^4.22.4"
   }

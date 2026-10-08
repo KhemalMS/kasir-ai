@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+
+import '../models/app_error.dart';
+import '../services/error_notifier.dart';
+import '../services/error_mapper.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
@@ -18,7 +22,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   final _passwordController = TextEditingController();
   bool _isLoading = false;
   bool _obscurePassword = true;
-  String? _error;
+  AppError? _appError;
   bool _isFullscreen = false;
   bool _showConnecting = true;
 
@@ -108,13 +112,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                       });
                       if (mounted) {
                         if (ApiConfig.baseUrl.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Server tidak ditemukan'), backgroundColor: Colors.red),
-                          );
+                          ErrorNotifier.show(ErrorMapper.from(Exception('Server tidak ditemukan'), null, module: 'login', action: 'autoDetect'));
                         } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Server otomatis terdeteksi!'), backgroundColor: Colors.green),
-                          );
+                          ErrorNotifier.showSuccess('Server otomatis terdeteksi!');
                         }
                       }
                     },
@@ -158,13 +158,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                     await ApiConfig.setBaseUrl(controller.text.trim());
                     if (mounted) {
                       Navigator.pop(ctx);
-                      setState(() => _error = null);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Server diubah ke: ${controller.text.trim()}'),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
+                      setState(() => _appError = null);
+                      ErrorNotifier.showSuccess('Server diubah ke: ${controller.text.trim()}');
                     }
                   },
                   child: const Text('Simpan'),
@@ -179,13 +174,13 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
   Future<void> _handleLogin() async {
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
-      setState(() => _error = 'Email dan kata sandi harus diisi');
+      setState(() => _appError = ErrorMapper.from(Exception('Email dan kata sandi harus diisi'), null, module: 'login', action: 'submit'));
       return;
     }
 
     setState(() {
       _isLoading = true;
-      _error = null;
+      _appError = null;
     });
 
     try {
@@ -206,18 +201,12 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       } else {
         Navigator.pushReplacementNamed(context, '/mulai-shift');
       }
-    } catch (e) {
+    } catch (e, stack) {
       if (!mounted) return;
       debugPrint('❌ Login error: $e');
-      String errorMsg = 'Login gagal. Periksa email dan kata sandi Anda.';
-      if (e.toString().contains('SocketException') || e.toString().contains('Connection refused')) {
-        errorMsg = 'Tidak dapat terhubung ke server. Pastikan server berjalan dan perangkat terhubung ke jaringan yang sama.';
-      } else if (e.toString().contains('TimeoutException') || e.toString().contains('timeout')) {
-        errorMsg = 'Server tidak merespons dalam 12 detik. Periksa koneksi internet atau hubungi admin.';
-      } else if (e.toString().contains('401') || e.toString().contains('Invalid') || e.toString().contains('credentials')) {
-        errorMsg = 'Email atau kata sandi salah. Silakan coba lagi.';
-      }
-      setState(() => _error = errorMsg);
+      setState(() {
+        _appError = ErrorMapper.from(e, stack, module: 'login', action: 'submit');
+      });
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -282,8 +271,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                       ),
                     ),
 
-                    // Error
-                    if (_error != null) ...[
+                    // General Error
+                    if (_appError != null && (_appError!.fieldErrors == null || _appError!.fieldErrors!.isEmpty)) ...[
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -298,7 +287,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
-                                _error!,
+                                _appError!.userMessage,
                                 style: const TextStyle(color: AppTheme.danger, fontSize: 13),
                               ),
                             ),
@@ -332,9 +321,10 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                               controller: _emailController,
                               keyboardType: TextInputType.emailAddress,
                               style: const TextStyle(color: AppTheme.textWhite),
-                              decoration: const InputDecoration(
-                                prefixIcon: Icon(Icons.mail_outline, color: AppTheme.textMuted, size: 20),
+                              decoration: InputDecoration(
+                                prefixIcon: const Icon(Icons.mail_outline, color: AppTheme.textMuted, size: 20),
                                 hintText: 'kasir@kasir-ai.com',
+                                errorText: _appError?.fieldErrors?['email'],
                               ),
                             ),
                             const SizedBox(height: 20),
@@ -368,6 +358,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                   ),
                                   onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                                 ),
+                                errorText: _appError?.fieldErrors?['password'],
                               ),
                             ),
                             const SizedBox(height: 28),

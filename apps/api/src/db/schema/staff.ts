@@ -1,4 +1,4 @@
-import { mysqlTable, varchar, text, timestamp, date } from 'drizzle-orm/mysql-core';
+import { mysqlTable, varchar, text, timestamp, date, int } from 'drizzle-orm/mysql-core';
 import { sql } from 'drizzle-orm';
 import { branches } from './branches';
 
@@ -23,6 +23,8 @@ export const staff = mysqlTable('staff', {
     joinDate:              date('join_date'),
     employmentType:        varchar('employment_type', { length: 20 }).default('Tetap'),
     pinCode:               varchar('pin_code', { length: 6 }),
+    pinAttempts:           int('pin_attempts').default(0).notNull(),
+    pinLockedUntil:        timestamp('pin_locked_until'),
     emergencyContactPhone: varchar('emergency_contact_phone', { length: 20 }),
     notes:                 text('notes'),
     bankName:              varchar('bank_name', { length: 50 }),
